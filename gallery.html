@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Коллекция банкоматов ChizhBank</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      overflow-y: auto !important;
+      padding: 30px 20px 60px 20px;
+      background: #080c14;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .gallery-header {
+      text-align: center;
+      max-width: 600px;
+      margin-bottom: 30px;
+    }
+
+    .gallery-header h1 {
+      font-size: 26px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(180deg, #fff 0%, #00f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .gallery-header p {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      padding: 8px 20px;
+      background: rgba(0, 242, 254, 0.15);
+      border: 1px solid #00f2fe;
+      color: #00f2fe;
+      border-radius: 20px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 800;
+      transition: all 0.2s;
+    }
+    .back-btn:hover {
+      background: #00f2fe;
+      color: #000;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 30px;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .gallery-card {
+      background: rgba(18, 24, 38, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+      position: relative;
+    }
+
+    .card-meta {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 12px;
+    }
+
+    .card-meta .tier-num {
+      font-size: 16px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .card-meta .tier-badge-pill {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(0, 242, 254, 0.15);
+      color: #00f2fe;
+      border: 1px solid rgba(0, 242, 254, 0.3);
+    }
+
+    .atm-preview-viewport {
+      width: 300px;
+      height: 415px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0 16px 0;
+    }
+
+    .card-desc-box {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .card-status-badge {
+      margin-top: 8px;
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      color: #00ff88;
+    }
+
+    .unlock-hint {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="gallery-header">
+    <h1 id="galleryMainHeading">Музей банкоматов ChizhBank</h1>
+    <p>Все 9 поколений банкоматов из истории ChizhBank. Открывайте их в игре по мере развития своей финансовой империи!</p>
+    <a href="index.html" class="back-btn">← Вернуться в игру</a>
+  </div>
+
+  <div class="gallery-grid" id="galleryGrid">
+    <!-- Генерируется скриптом ниже -->
+  </div>
+
+  <script src="icons.js?v=3"></script>
+  <script src="atm-models.js?v=3"></script>
+  <script>
+    document.getElementById("galleryMainHeading").innerHTML = `<span class="modal-title-ico">${SVG_ICONS.appleMuseum}</span> Музей банкоматов ChizhBank`;
+
+    const tiers = [
+      { key: "tier1", photoRef: "Фото 1 • Уличный терминал 90-х", unlockCost: "Стартовый банкомат ($0)" },
+      { key: "tier2", photoRef: "Фото 2 • Американский Genmega Ритейл", unlockCost: "Открывается за $5,000" },
+      { key: "tier3", photoRef: "Фото 3 • Изумрудный Металлик с козырьком", unlockCost: "Открывается за $45,000" },
+      { key: "tier4", photoRef: "Новое Фото 1 • Сапфировый Киоск с зеленым глазом", unlockCost: "Открывается за $350,000" },
+      { key: "tier5", photoRef: "Фото 4 • Солнечный Тотем ChizhBank", unlockCost: "Открывается за $2,500,000" },
+      { key: "tier6", photoRef: "Новое Фото 2 • Маджента Ритейл Киоск", unlockCost: "Открывается за $16,000,000" },
+      { key: "tier7", photoRef: "Новое Фото 3 • Алый Киоск с Бегущей Строкой", unlockCost: "Открывается за $95,000,000" },
+      { key: "tier8", photoRef: "Новое Фото 4 • Двухэкранный Концепт Кокпит OLED", unlockCost: "Открывается за $650,000,000" },
+      { key: "tier9", photoRef: "Секретный финал • Квантовый Кибер-Банк 2077", unlockCost: "Открывается за $4,000,000,000" }
+    ];
+
+    const grid = document.getElementById("galleryGrid");
+    const mockState = {
+      baseTapPower: 1,
+      upgrades: {},
+      atmTierIndex: 0
+    };
+
+    tiers.forEach((item, index) => {
+      const model = ATM_MODELS[item.key];
+      const card = document.createElement("div");
+      card.className = "gallery-card";
+
+      card.innerHTML = `
+        <div class="card-meta">
+          <div class="tier-num">${model.name}</div>
+          <div class="tier-badge-pill">${model.badge}</div>
+        </div>
+
+        <div class="atm-preview-viewport">
+          <div class="atm-interactive-wrapper" id="previewAtm_${index}">
+            ${model.render(mockState)}
+          </div>
+        </div>
+
+        <div class="card-desc-box">
+          <b style="color: #fff;">${item.photoRef}</b><br>
+          ${model.description}<br>
+          <div class="card-status-badge"><span class="apple-svg-inline" style="color: #ffd700;">${SVG_ICONS.appleBolt}</span>Множитель дохода: x${model.multiplier}</div>
+          <div class="unlock-hint"><span class="apple-svg-inline" style="color: #94a3b8;">${SVG_ICONS.appleLock}</span>${item.unlockCost}</div>
+        </div>
+      `;
+
+      grid.appendChild(card);
+
+      // Интерактивный отклик нажатия прямо в музее
+      const wrapper = card.querySelector(".atm-interactive-wrapper");
+      wrapper.addEventListener("pointerdown", () => {
+        wrapper.classList.remove("tapped");
+        void wrapper.offsetWidth;
+        wrapper.classList.add("tapped");
+      });
+    });
+  </script>
+</body>
+</html>

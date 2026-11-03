@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Банкомат: Кэш-Магнат</title>
+  
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <link rel="stylesheet" href="style.css?v=8">
+</head>
+<body>
+  <!-- Контейнер эффектов поверх экрана (купюры, клики, конфетти) -->
+  <canvas id="particleCanvas"></canvas>
+
+  <div id="app">
+    <!-- Всплывающий интерактивный PIN-пад для мобильных устройств -->
+    <div id="pinPadModal" class="pin-modal-overlay hidden">
+      <div class="pin-sheet-pad">
+        <div class="pin-sheet-header">
+          <div class="pin-sheet-title">
+            <span class="pin-shield-ico" id="pinShieldIco"></span>
+            <span>СЕКРЕТНЫЙ КОД: <b id="pinTargetCode" class="pin-code-highlight">7-7-7-7</b></span>
+          </div>
+          <div class="pin-timer-badge">
+            <span id="pinTimerDisplay">7.0с</span>
+          </div>
+        </div>
+
+        <div class="pin-timer-track">
+          <div class="pin-timer-progress" id="pinTimerProgress" style="width: 100%;"></div>
+        </div>
+
+        <div class="pin-sheet-dots" id="pinSheetDots">
+          <span class="pin-sheet-dot"></span>
+          <span class="pin-sheet-dot"></span>
+          <span class="pin-sheet-dot"></span>
+          <span class="pin-sheet-dot"></span>
+        </div>
+
+        <div class="pin-sheet-grid">
+          <button class="sheet-key" data-key="1">1</button>
+          <button class="sheet-key" data-key="2">2</button>
+          <button class="sheet-key" data-key="3">3</button>
+          <button class="sheet-key" data-key="4">4</button>
+          <button class="sheet-key" data-key="5">5</button>
+          <button class="sheet-key" data-key="6">6</button>
+          <button class="sheet-key" data-key="7">7</button>
+          <button class="sheet-key" data-key="8">8</button>
+          <button class="sheet-key" data-key="9">9</button>
+          <button class="sheet-key cancel" data-key="cancel" id="sheetKeyCancel">
+            <span class="key-inner-ico" id="sheetKeyCancelIco"></span>
+          </button>
+          <button class="sheet-key" data-key="0">0</button>
+          <button class="sheet-key ok" data-key="ok" id="sheetKeyOk">
+            <span class="key-inner-ico" id="sheetKeyOkIco"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Шапка профиля -->
+    <header class="top-bar">
+      <div class="user-profile">
+        <div class="avatar" id="userAvatar">
+          <!-- Векторная иконка пользователя -->
+        </div>
+        <div class="user-meta">
+          <div class="username" id="userName">Банкир</div>
+          <div class="user-tier" id="userTier">Ур. 1 • Американский ATM 90-х</div>
+        </div>
+      </div>
+      <div class="top-actions" style="display: flex; align-items: center; gap: 8px;">
+        <button id="openGalleryBtn" class="top-gallery-pill" title="Музей всех банкоматов">
+          <span class="pill-ico" id="galleryPillIco"></span>
+          <span class="pill-lbl">Музей</span>
+        </button>
+        <button id="themeToggleBtn" class="icon-btn" title="Сменить День/Ночь"></button>
+        <button id="soundToggleBtn" class="icon-btn" title="Включить/выключить звук"></button>
+      </div>
+    </header>
+
+    <!-- Секция баланса -->
+    <section class="balance-section">
+      <div class="balance-label">БАЛАНС НА СЧЕТУ</div>
+      <div class="balance-amount" id="balanceDisplay">$0</div>
+      <div class="income-rate">
+        <span class="rate-icon" id="rateIcon"></span>
+        <span id="incomeRateDisplay">+$0/сек</span>
+      </div>
+    </section>
+
+    <!-- ОСНОВНОЙ ЭКРАН (ТАПАЛКА) -->
+    <main id="mainScreen" class="tab-content active">
+      <!-- Ночной фонарь, мягко освещающий банкомат сверху -->
+      <div class="night-lantern-spotlight" id="nightLantern"></div>
+
+      <!-- Термопринтер чеков банкомата -->
+      <div id="receiptContainer" class="receipt-printer-wrap hidden"></div>
+
+      <!-- Баннер бонуса/сбоя системы с выезжающей анимацией и бегущей строкой в цвет текущего банкомата -->
+      <div id="frenzyBanner" class="frenzy-banner hidden">
+        <div class="frenzy-ticker-wrap">
+          <div class="frenzy-ticker-track">
+            <span class="frenzy-chunk"><span class="frenzy-flash-slot"></span> СБОЙ БАНКОМАТА! ТАП x3 • БЕЗЛИМИТНАЯ ЭНЕРГИЯ! <span class="frenzy-flash-slot"></span></span>
+            <span class="frenzy-chunk"><span class="frenzy-flash-slot"></span> СБОЙ БАНКОМАТА! ТАП x3 • БЕЗЛИМИТНАЯ ЭНЕРГИЯ! <span class="frenzy-flash-slot"></span></span>
+            <span class="frenzy-chunk"><span class="frenzy-flash-slot"></span> СБОЙ БАНКОМАТА! ТАП x3 • БЕЗЛИМИТНАЯ ЭНЕРГИЯ! <span class="frenzy-flash-slot"></span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Контейнер аутентичного банкомата -->
+      <div class="atm-container">
+        <!-- Индикатор комбо в виде подсвеченного лотка банкомата -->
+        <div class="combo-badge" id="comboBadge">
+          <span class="combo-icon-slot" id="comboIconSlot"></span>
+          <span class="combo-tray-slit"></span>
+          <span class="combo-display-text" id="comboDisplayText">x1.0 КОМБО</span>
+        </div>
+
+        <!-- Интерактивная модель банкомата (генерируется динамически) -->
+        <div class="atm-interactive-wrapper" id="atmWrapper">
+          <!-- Содержимое банкомата рендерится через atm-models.js -->
+        </div>
+      </div>
+
+      <!-- Панель энергии -->
+      <div class="energy-panel">
+        <div class="energy-info">
+          <span class="energy-label">
+            <span class="icon-svg-wrapper" id="energyIcon"></span>
+            <span>Энергия</span>
+          </span>
+          <span class="energy-values"><b id="currentEnergy">1000</b> / <span id="maxEnergy">1000</span></span>
+        </div>
+        <div class="energy-bar-bg">
+          <div class="energy-bar-fill" id="energyBarFill" style="width: 100%;"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ВКЛАДКА: УЛУЧШЕНИЯ (ПРОКАЧКА ТАПА) -->
+    <section id="upgradesScreen" class="tab-content">
+      <div class="screen-title">
+        <h2>Прокачка Банкомата</h2>
+        <p>Увеличьте мощность каждого нажатия и энергоёмкость</p>
+      </div>
+      <div class="cards-list" id="upgradesList">
+        <!-- Генерируется динамически через game.js c векторными иконками -->
+      </div>
+    </section>
+
+    <!-- ВКЛАДКА: БИЗНЕС (ПАССИВНЫЙ ДОХОД) -->
+    <section id="businessScreen" class="tab-content">
+      <div class="screen-title">
+        <h2>Банковская Сеть</h2>
+        <p>Пассивный доход даже когда игра закрыта</p>
+      </div>
+      <div class="cards-list" id="businessList">
+        <!-- Генерируется динамически через game.js с векторными иконками -->
+      </div>
+    </section>
+
+    <!-- ВКЛАДКА: СТАТИСТИКА -->
+    <section id="statsScreen" class="tab-content">
+      <div class="screen-title">
+        <h2>Профиль и Инфо</h2>
+        <p>Ваши личные данные и финансовые достижения</p>
+      </div>
+
+      <!-- Карточка смены ника -->
+      <div class="stats-card profile-card" style="margin-bottom: 12px;">
+        <div class="profile-header-row">
+          <div class="profile-avatar-box" id="profileStatsAvatar"></div>
+          <div class="profile-meta-info">
+            <span class="profile-meta-title">ПРОФИЛЬ БАНКИРА</span>
+            <div class="profile-meta-name" id="currentNicknameDisplay">Банкир</div>
+          </div>
+        </div>
+        <div class="nickname-edit-group">
+          <input type="text" id="changeNicknameInput" class="nickname-input" placeholder="Новый никнейм" maxlength="15" autocomplete="off" />
+          <button id="saveNewNicknameBtn" class="btn-save-nick">Сменить</button>
+        </div>
+        <div id="nickChangeSuccessMsg" class="nick-success-tag hidden">✓ Никнейм успешно сохранен!</div>
+      </div>
+
+      <!-- КАРЬЕРА И РАНГ БАНКИРА -->
+      <div class="career-rank-card" id="careerCard">
+        <div class="career-header-row">
+          <span class="career-title">Карьерный Ранг</span>
+          <span class="career-current-badge" id="currentRankBadge">Студент с картой</span>
+        </div>
+        <div class="career-bonus-tag" id="currentRankBonus">Бонус ко всем доходам: +0%</div>
+        <div class="career-progress-track">
+          <div class="career-progress-fill" id="careerProgressFill" style="width: 0%;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #94a3b8; margin-top: 4px;">
+          <span id="careerProgressCurrent">$0</span>
+          <span id="careerProgressNext">Следующий: Стажёр ($1,000)</span>
+        </div>
+      </div>
+
+      <!-- БАННЕР ВЫХОДА НА IPO (ПРЕСТИЖ) -->
+      <div class="ipo-banner-card" id="ipoBannerCard">
+        <div class="ipo-banner-title">
+          <span class="ipo-title-ico-slot" id="ipoTitleIco"></span>
+          <span>Выход ChizhBank на Биржу (IPO)</span>
+        </div>
+        <div class="ipo-banner-sub">Разместите акции вашего банка на Уолл-стрит! Получайте Золотые Акции Чижа и вечный глобальный множитель x2 ко всему доходу!</div>
+        <div style="margin-bottom: 10px;">
+          <span class="shares-active-badge" id="activeSharesBadge">Золотые Акции: 0 шт (x1.0)</span>
+        </div>
+        <button id="openIpoModalBtn" class="btn-ipo-trigger">Выйти на IPO ($1 млрд)</button>
+      </div>
+
+      <!-- КАСТОМИЗАЦИЯ СКИНОК КУПЮР (СВОРАЧИВАЕМАЯ ВКЛАДКА) -->
+      <div class="stats-card accordion-card" id="accordionSkins">
+        <div class="accordion-header" role="button" tabindex="0">
+          <div class="accordion-header-left">
+            <span class="accordion-ico-box" id="skinsHeaderIco"></span>
+            <div>
+              <div class="accordion-title">Скины банкнот тапа</div>
+              <small class="accordion-subtitle" id="activeSkinLabel">Классический зеленый</small>
+            </div>
+          </div>
+          <div class="accordion-chevron" id="chevronSkins"></div>
+        </div>
+        <div class="accordion-content">
+          <div class="bill-skins-grid" id="billSkinsGrid">
+            <!-- Генерируется через game.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- СИСТЕМА АЧИВОК (СВОРАЧИВАЕМАЯ ВКЛАДКА) -->
+      <div class="stats-card accordion-card" id="accordionAchievements">
+        <div class="accordion-header" role="button" tabindex="0">
+          <div class="accordion-header-left">
+            <span class="accordion-ico-box" id="achieveHeaderIco">
+              <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="trophyGoldGradHtml" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#fde047"/>
+                    <stop offset="50%" stop-color="#eab308"/>
+                    <stop offset="100%" stop-color="#ca8a04"/>
+                  </linearGradient>
+                  <linearGradient id="trophyBaseGradHtml" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#eab308"/>
+                    <stop offset="100%" stop-color="#854d0e"/>
+                  </linearGradient>
+                </defs>
+                <path d="M4 6C4 8.5 5.5 10.5 7.5 11" stroke="#facc15" stroke-width="2" stroke-linecap="round"/>
+                <path d="M20 6C20 8.5 18.5 10.5 16.5 11" stroke="#facc15" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 4H18V10C18 13.3137 15.3137 16 12 16C8.68629 16 6 13.3137 6 10V4Z" fill="url(#trophyGoldGradHtml)" stroke="#fef08a" stroke-width="1"/>
+                <polygon points="12,7 13,9.5 15.5,9.5 13.5,11.2 14.2,13.5 12,12 9.8,13.5 10.5,11.2 8.5,9.5 11,9.5" fill="#ffffff" opacity="0.95"/>
+                <path d="M10.5 16H13.5V18.5H10.5V16Z" fill="#b45309"/>
+                <path d="M7 19H17C17.5523 19 18 19.4477 18 20V21H6V20C6 19.4477 6.44772 19 7 19Z" fill="url(#trophyBaseGradHtml)" stroke="#fef08a" stroke-width="0.8"/>
+              </svg>
+            </span>
+            <div>
+              <div class="accordion-title">Достижения ChizhBank</div>
+              <small class="accordion-subtitle" id="achieveUnlockedCount">0 из 7 разблокировано</small>
+            </div>
+          </div>
+          <div class="accordion-chevron" id="chevronAchievements"></div>
+        </div>
+        <div class="accordion-content">
+          <div class="achieve-list" id="achievementsList">
+            <!-- Генерируется через game.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- СТАТИСТИКА (СВОРАЧИВАЕМАЯ ВКЛАДКА) -->
+      <div class="stats-card accordion-card" id="accordionStats">
+        <div class="accordion-header" role="button" tabindex="0">
+          <div class="accordion-header-left">
+            <span class="accordion-ico-box" id="statsHeaderIco">
+              <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="statBarGradHtml1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#38bdf8"/>
+                    <stop offset="100%" stop-color="#0284c7"/>
+                  </linearGradient>
+                  <linearGradient id="statBarGradHtml2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#34d399"/>
+                    <stop offset="100%" stop-color="#059669"/>
+                  </linearGradient>
+                  <linearGradient id="statBarGradHtml3" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#a855f7"/>
+                    <stop offset="100%" stop-color="#7e22ce"/>
+                  </linearGradient>
+                </defs>
+                <line x1="3" y1="20" x2="21" y2="20" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>
+                <rect x="4" y="13" width="3.5" height="7" rx="1" fill="url(#statBarGradHtml1)"/>
+                <rect x="10.25" y="8" width="3.5" height="12" rx="1" fill="url(#statBarGradHtml2)"/>
+                <rect x="16.5" y="4" width="3.5" height="16" rx="1" fill="url(#statBarGradHtml3)"/>
+                <path d="M4 11L10.5 6L14 8.5L20 3M20 3H16M20 3V7" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <div>
+              <div class="accordion-title">Финансовая статистика</div>
+              <small class="accordion-subtitle">Показатели банка и прогресс</small>
+            </div>
+          </div>
+          <div class="accordion-chevron" id="chevronStats"></div>
+        </div>
+        <div class="accordion-content">
+          <div class="stat-row">
+            <span>Всего заработано кэша:</span>
+            <b id="statTotalEarned">$0</b>
+          </div>
+          <div class="stat-row">
+            <span>Всего нажатий по банкомату:</span>
+            <b id="statTotalClicks">0</b>
+          </div>
+          <div class="stat-row">
+            <span>Поймано Золотых Карт:</span>
+            <b id="statCardsCaught">0</b>
+          </div>
+          <div class="stat-row">
+            <span>Активировано сбоев (Джепотов):</span>
+            <b id="statFrenzies">0</b>
+          </div>
+          <div class="stat-row">
+            <span>Текущее поколение банкомата:</span>
+            <b id="statAtmTier">Ур. 1</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- АНГАР ПОКОЛЕНИЙ БАНКОМАТОВ (СВОРАЧИВАЕМАЯ ВКЛАДКА) -->
+      <div class="stats-card accordion-card atm-hangar-card" id="accordionHangar">
+        <div class="accordion-header" role="button" tabindex="0">
+          <div class="accordion-header-left">
+            <span class="hangar-ico" id="hangarIco"></span>
+            <div>
+              <div class="accordion-title">Ангар банкоматов</div>
+              <small class="accordion-subtitle">Выбор открытых поколений сети</small>
+            </div>
+          </div>
+          <div class="accordion-chevron" id="chevronHangar"></div>
+        </div>
+        <div class="accordion-content">
+          <div class="hangar-tiers-list" id="hangarTiersList">
+            <!-- Генерируется через game.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- КАРТОЧКА ТОП-10 БАНКИРОВ (СВОРАЧИВАЕМАЯ ВКЛАДКА) -->
+      <div class="stats-card accordion-card leaderboard-card" id="accordionLeaderboard">
+        <div class="accordion-header" role="button" tabindex="0">
+          <div class="accordion-header-left">
+            <span class="lb-trophy-icon" id="lbTrophyIco"></span>
+            <div>
+              <div class="accordion-title">Топ 10 Банкиров ChizhBank</div>
+              <small class="accordion-subtitle">Мировой рейтинг капитала</small>
+            </div>
+          </div>
+          <div class="accordion-chevron" id="chevronLeaderboard"></div>
+        </div>
+        <div class="accordion-content">
+          <div class="leaderboard-list" id="leaderboardList">
+            <!-- Генерируется динамически через game.js -->
+          </div>
+        </div>
+      </div>
+        </div>
+      </div>
+
+      <div class="reset-section" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button id="resetDataBtn" class="btn-danger">Сбросить прогресс</button>
+      </div>
+    </section>
+
+    <!-- Летающая банковская карта ChizhBank packet (Bronze, Silver, Gold, Diamond) -->
+    <div id="flyingBonus" class="flying-bonus hidden">
+      <div class="flying-card-wrapper" id="flyingCardWrapper">
+        <!-- Генерируется динамически через game.js c точным SVG макетом карты -->
+      </div>
+    </div>
+
+    <!-- Всплывающее уведомление о пойманной карте -->
+    <div id="cardToastContainer" class="hidden"></div>
+
+    <!-- Модальное окно Выхода на IPO (Биржа) -->
+    <div id="ipoModal" class="modal-overlay hidden">
+      <div class="modal-card ipo-modal-card">
+        <div class="modal-icon" id="ipoModalIcon"></div>
+        <h3 style="margin-top: 6px;">Выход ChizhBank на IPO!</h3>
+        <p>Разместите акции вашей финансовой империи на Нью-Йоркской фондовой бирже.</p>
+        <div style="background: rgba(0, 0, 0, 0.4); border-radius: 12px; padding: 12px; margin: 12px 0; border: 1.5px solid rgba(255, 215, 0, 0.3); text-align: left;">
+          <div style="font-size: 13px; font-weight: 900; color: #ffd700;" id="ipoSharesGain">Вы получите: +1 Золотую Акцию Чижа</div>
+          <div style="font-size: 11px; font-weight: 800; color: #00ff88; margin-top: 4px;" id="ipoNewMultiplier">Новый вечный множитель: x2.0 ко всему доходу</div>
+          <div style="font-size: 9.5px; color: #94a3b8; margin-top: 6px; line-height: 1.3;">* Текущий баланс и бизнесы обнуляются для нового забега, но Золотые Акции останутся с вами навсегда!</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button id="cancelIpoBtn" style="flex: 1; padding: 10px; border-radius: 12px; background: #334155; color: #fff; font-weight: 900; border: none; cursor: pointer;">Отмена</button>
+          <button id="confirmIpoBtn" class="btn-claim" style="flex: 1; margin: 0;">Провести IPO</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно первого входа / ввод никнейма -->
+    <div id="nicknameModal" class="modal-overlay hidden">
+      <div class="modal-card nickname-modal-card">
+        <div class="modal-chizh-hero" id="modalChizhHero"></div>
+        <h3 style="margin-top: 8px;">Добро пожаловать в ChizhBank!</h3>
+        <p style="margin-bottom: 12px;">Создайте свой профиль банкира. Как к вам обращаться?</p>
+        <div class="nickname-form-row">
+          <input type="text" id="initialNicknameInput" class="nickname-input" placeholder="Введите ваш никнейм" maxlength="15" autocomplete="off" />
+        </div>
+        <button id="saveInitialNicknameBtn" class="btn-claim" style="margin-top: 14px;">Начать карьеру банкира</button>
+      </div>
+    </div>
+
+    <!-- Модальное окно офлайн дохода -->
+    <div id="offlineModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-icon" id="modalIcon"></div>
+        <h3>С возвращением!</h3>
+        <p>Пока вас не было (офлайн-эффективность 20%), ваша сеть принесла:</p>
+        <div class="offline-payout" id="offlinePayoutAmount">+$0</div>
+        <button id="claimOfflineBtn" class="btn-claim">Забрать кэш</button>
+      </div>
+    </div>
+
+    <!-- Модальное окно музея банкоматов (без перезагрузки страницы) -->
+    <div id="galleryModal" class="modal-overlay hidden">
+      <div class="modal-card gallery-modal-card">
+        <div class="gallery-modal-header">
+          <div class="gallery-modal-title-box">
+            <h3><span class="modal-title-ico" id="modalGalleryTitleIco"></span>Музей банкоматов ChizhBank</h3>
+            <p>Все 9 поколений банкоматов вашей финансовой империи</p>
+          </div>
+          <button id="closeGalleryModalBtn" class="modal-close-icon-btn" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="gallery-modal-scroll" id="modalGalleryGrid">
+          <!-- Генерируется скриптом на лету с интерактивными превью банкоматов -->
+        </div>
+        <div class="gallery-modal-footer">
+          <button id="closeGalleryModalBottomBtn" class="btn-claim" style="margin: 0;">Закрыть музей</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Нижняя навигационная панель -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" data-tab="mainScreen">
+        <span class="nav-icon" id="tabIconAtm"></span>
+        <span class="nav-text">Банкомат</span>
+      </button>
+      <button class="nav-tab" data-tab="upgradesScreen">
+        <span class="nav-icon" id="tabIconUpgrade"></span>
+        <span class="nav-text">Прокачка</span>
+      </button>
+      <button class="nav-tab" data-tab="businessScreen">
+        <span class="nav-icon" id="tabIconBusiness"></span>
+        <span class="nav-text">Бизнес</span>
+      </button>
+      <button class="nav-tab" data-tab="statsScreen">
+        <span class="nav-icon" id="tabIconStats"></span>
+        <span class="nav-text">Инфо</span>
+      </button>
+    </nav>
+  </div>
+
+  <script src="icons.js?v=8"></script>
+  <script src="atm-models.js?v=8"></script>
+  <script src="game.js?v=8"></script>
+</body>
+</html>
