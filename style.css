@@ -4190,3 +4190,84 @@ body.theme-day .night-lantern-spotlight {
   align-items: center;
   justify-content: center;
 }
+
+/* ==========================================================================
+   КОЛЛЕКЦИОННЫЕ НЕОНОВЫЕ АВАТАРЫ CHIZHBANK
+   ========================================================================== */
+.avatar-select-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px 8px;
+  justify-items: center;
+  align-items: center;
+  padding: 8px 4px;
+}
+.avatar-item-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+  position: relative;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.avatar-item-btn:hover {
+  transform: scale(1.12);
+}
+.avatar-item-btn:active {
+  transform: scale(0.92);
+}
+.avatar-item-btn.selected {
+  transform: scale(1.16);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.45);
+}
+.avatar-item-btn.selected::after {
+  content: "✓";
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 900;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #0f172a;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+.user-avatar-btn {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-avatar-btn:active {
+  transform: scale(0.92);
+}
+.profile-avatar-box {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.lb-avatar-mini {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

@@ -476,10 +476,10 @@ const UPGRADE_CONFIGS = [
     id: "recharge_speed",
     iconName: "recharge",
     name: "Скорость инкассации",
-    desc: "+0.42 энергии в сек.",
+    desc: "+0.50 энергии в сек.",
     baseCost: 100,
     costMultiplier: 1.50,
-    effectPerLevel: 0.42
+    effectPerLevel: 0.50
   },
   {
     id: "crit_luck",
@@ -580,7 +580,7 @@ class AtmGame {
       frenziesTriggered: 0,
       energy: 500,
       maxEnergy: 500,
-      energyRechargeRate: 1.41, // +50% ускорение регенерации (было 0.935)
+      energyRechargeRate: 1.70, // +20% дополнительное ускорение (было 1.41)
       baseTapPower: 1,
       critChance: 0.03,
       atmTierIndex: 0,
@@ -595,8 +595,12 @@ class AtmGame {
       ipoCount: 0,
       unlockedSkins: { green: true },
       activeBillSkin: "green",
+      selectedAvatar: "avatar_2",
       achievements: {}
     };
+
+    this.cloudLeaderboard = null;
+    this.lastLeaderboardFetch = 0;
 
     this.pinChallenge = { active: false, code: "", input: "" };
     this.pinPromptTimer = null;
@@ -645,8 +649,10 @@ class AtmGame {
           }
         }
 
-        if (!this.state.energyRechargeRate || this.state.energyRechargeRate < 1.41) {
-          this.state.energyRechargeRate = 1.41;
+        if (!this.state.selectedAvatar) this.state.selectedAvatar = "avatar_2";
+
+        if (!this.state.energyRechargeRate || this.state.energyRechargeRate < 1.70) {
+          this.state.energyRechargeRate = 1.70;
         }
 
         // Автоматическое восстановление энергии в офлайне (даже когда игрока нет в игре)
@@ -704,31 +710,77 @@ class AtmGame {
     this.syncWithCloud();
   }
 
+  getUserId() {
+    if (tg?.initDataUnsafe?.user?.id) {
+      return String(tg.initDataUnsafe.user.id);
+    }
+    let localId = localStorage.getItem("chizhbank_device_user_id");
+    if (!localId) {
+      localId = "u_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+      localStorage.setItem("chizhbank_device_user_id", localId);
+    }
+    return localId;
+  }
+
   async syncWithCloud() {
     const cloudUrl = window.CHIZHBANK_CLOUD_URL;
-    const userId = tg?.initDataUnsafe?.user?.id;
+    const userId = this.getUserId();
     if (!cloudUrl || !userId) return;
+
     try {
+      const payload = {
+        userId: String(userId),
+        nickname: this.state.nickname || (tg?.initDataUnsafe?.user?.first_name) || "Банкир",
+        avatarId: this.state.selectedAvatar || "avatar_2",
+        fortune: Math.floor(this.state.totalEarned || 0),
+        atmTier: this.state.atmTierIndex || 0,
+        state: this.state
+      };
+
       await fetch(`${cloudUrl}/api/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, state: this.state })
+        body: JSON.stringify(payload)
       });
     } catch (e) {}
   }
 
   async loadFromCloud() {
     const cloudUrl = window.CHIZHBANK_CLOUD_URL;
-    const userId = tg?.initDataUnsafe?.user?.id;
+    const userId = this.getUserId();
     if (!cloudUrl || !userId) return;
+
     try {
       const res = await fetch(`${cloudUrl}/api/load?userId=${userId}`);
-      const data = await res.json();
-      if (data && data.state && (data.state.lastSaveTime || 0) > (this.state.lastSaveTime || 0)) {
-        this.state = Object.assign(this.state, data.state);
-        this.renderUI();
-        this.renderLists();
-        this.updateAtmAppearance();
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.state && (data.state.lastSaveTime || 0) > (this.state.lastSaveTime || 0)) {
+          this.state = Object.assign(this.state, data.state);
+          this.renderUI();
+          this.renderLists();
+          this.updateAtmAppearance();
+          this.updateNicknameUI();
+        }
+      }
+    } catch (e) {}
+
+    // Сразу запрашиваем реальный лидерборд
+    this.fetchCloudLeaderboard();
+  }
+
+  async fetchCloudLeaderboard() {
+    const cloudUrl = window.CHIZHBANK_CLOUD_URL;
+    const userId = this.getUserId();
+    if (!cloudUrl) return;
+
+    try {
+      const res = await fetch(`${cloudUrl}/api/leaderboard?userId=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          this.cloudLeaderboard = data;
+          this.renderLeaderboard();
+        }
       }
     } catch (e) {}
   }
@@ -755,9 +807,6 @@ class AtmGame {
   }
 
   initTelegramProfile() {
-    const userAvatarEl = document.getElementById("userAvatar");
-    if (userAvatarEl) userAvatarEl.innerHTML = SVG_ICONS.chizhBirdColor;
-
     this.updateNicknameUI();
   }
 
@@ -772,7 +821,58 @@ class AtmGame {
     const changeInput = document.getElementById("changeNicknameInput");
     if (changeInput) changeInput.placeholder = name;
 
+    const avatarId = this.state.selectedAvatar || "avatar_2";
+
+    const userAvatarEl = document.getElementById("userAvatar");
+    if (userAvatarEl) {
+      userAvatarEl.innerHTML = getChizhAvatarSvg(avatarId, 38);
+      userAvatarEl.classList.add("user-avatar-btn");
+    }
+
+    const profileStatsAvatar = document.getElementById("profileStatsAvatar");
+    if (profileStatsAvatar) {
+      profileStatsAvatar.innerHTML = getChizhAvatarSvg(avatarId, 48);
+    }
+
+    this.renderAvatarPickers();
     this.renderLeaderboard();
+  }
+
+  renderAvatarPickers() {
+    const currentAv = this.state.selectedAvatar || "avatar_2";
+    ["initialAvatarGrid", "profileAvatarGrid"].forEach(gridId => {
+      const grid = document.getElementById(gridId);
+      if (!grid) return;
+      let html = "";
+      CHIZH_AVATARS.forEach(av => {
+        const isSel = av.id === currentAv;
+        html += `
+          <button class="avatar-item-btn ${isSel ? 'selected' : ''}" data-avatar="${av.id}" title="${av.name}" type="button">
+            ${getChizhAvatarSvg(av.id, 44)}
+          </button>
+        `;
+      });
+      grid.innerHTML = html;
+
+      grid.querySelectorAll(".avatar-item-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const avId = btn.dataset.avatar;
+          this.selectAvatar(avId);
+        });
+      });
+    });
+  }
+
+  selectAvatar(avId) {
+    if (!avId || this.state.selectedAvatar === avId) return;
+    this.state.selectedAvatar = avId;
+    sounds.init();
+    sounds.playTap();
+    triggerHaptic("medium");
+    this.saveState();
+    this.updateNicknameUI();
   }
 
   getTierProgress(tierIndex = this.state.atmTierIndex) {
@@ -850,7 +950,7 @@ class AtmGame {
 
   getRechargeRate() {
     const upgradeLevel = this.getUpgradeLevel("recharge_speed");
-    const base = Math.max(1.41, (this.state.energyRechargeRate || 1.41));
+    const base = Math.max(1.70, (this.state.energyRechargeRate || 1.70));
     return base + upgradeLevel * UPGRADE_CONFIGS[2].effectPerLevel;
   }
 
@@ -963,8 +1063,20 @@ class AtmGame {
     const modalChizhHero = document.getElementById("modalChizhHero");
     if (modalChizhHero) modalChizhHero.innerHTML = SVG_ICONS.chizhBirdColor;
 
-    const profileStatsAvatar = document.getElementById("profileStatsAvatar");
-    if (profileStatsAvatar) profileStatsAvatar.innerHTML = SVG_ICONS.chizhBirdColor;
+    // Клик по аватару в шапке переносит в настройки профиля
+    document.getElementById("userAvatar")?.addEventListener("click", () => {
+      sounds.init();
+      sounds.playTap();
+      triggerHaptic("light");
+      document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      document.querySelector('[data-tab="statsScreen"]')?.classList.add("active");
+      document.getElementById("statsScreen")?.classList.add("active");
+      this.renderLists();
+      this.fetchCloudLeaderboard();
+      const avatarSec = document.querySelector(".avatar-selection-card");
+      if (avatarSec) avatarSec.scrollIntoView({ behavior: "smooth" });
+    });
 
     // Инициализация окна первого входа / ввода ника
     const nicknameModal = document.getElementById("nicknameModal");
@@ -1023,6 +1135,9 @@ class AtmGame {
 
         triggerHaptic("light");
         this.renderLists();
+        if (targetId === "statsScreen") {
+          this.fetchCloudLeaderboard();
+        }
       });
     });
 
@@ -2372,35 +2487,67 @@ class AtmGame {
     const listEl = document.getElementById("leaderboardList");
     if (!listEl) return;
 
-    const rivals = [
-      { name: "Сатоши Чижевский", fortune: 15000000000000, tier: "Квантовый Кибер-Банк 2077" },
-      { name: "Илон Кэш", fortune: 4500000000000, tier: "Двухэкранный Кокпит" },
-      { name: "Уоррен Банкомат", fortune: 950000000000, tier: "Алый Киоск LED" },
-      { name: "Барон фон Чиж", fortune: 180000000000, tier: "Маджента Ритейл" },
-      { name: "Александр Золотой", fortune: 25000000000, tier: "Солнечный Тотем" },
-      { name: "Герман Зелёный", fortune: 3500000000, tier: "Сапфировый Киоск" },
-      { name: "Олег Жёлтый", fortune: 480000000, tier: "Изумрудный Металлик" },
-      { name: "Мэри Уоллстрит", fortune: 45000000, tier: "Genmega Ритейл" },
-      { name: "Новичок Кэша", fortune: 150000, tier: "Ветеран 90-х" }
-    ];
+    const myUserId = this.getUserId();
+    const myFortune = Math.floor(this.state.totalEarned || 0);
+    const myName = this.state.nickname || (tg?.initDataUnsafe?.user?.first_name) || "Банкир";
+    const myAvatar = this.state.selectedAvatar || "avatar_2";
+    const myTierName = ATM_TIERS[this.state.atmTierIndex]?.name || "Ветеран 90-х";
 
-    const playerFortune = Math.floor(this.state.totalEarned);
-    const playerName = this.state.nickname || (tg?.initDataUnsafe?.user?.first_name) || "Банкир";
-    const playerTier = ATM_TIERS[this.state.atmTierIndex]?.name || "Ветеран 90-х";
+    let players = [];
+    let userRank = 1;
+    let totalPlayers = 1;
 
-    const allEntries = rivals.map(r => ({ ...r, isUser: false }));
-    allEntries.push({
-      name: playerName,
-      fortune: playerFortune,
-      tier: playerTier,
-      isUser: true
-    });
+    // ТОЛЬКО РЕАЛЬНЫЕ ИГРОКИ ИЗ БАЗЫ CLOUDFLARE D1 (БЕЗ БОТОВ)
+    if (this.cloudLeaderboard && Array.isArray(this.cloudLeaderboard.top10) && this.cloudLeaderboard.top10.length > 0) {
+      players = this.cloudLeaderboard.top10.map(p => ({
+        userId: String(p.user_id || p.userId),
+        name: p.nickname || "Банкир",
+        avatar: p.avatar_id || p.avatarId || "avatar_2",
+        fortune: Number(p.fortune || 0),
+        tier: ATM_TIERS[p.atm_tier || p.atmTier || 0]?.name || "Ветеран 90-х",
+        isUser: String(p.user_id || p.userId) === String(myUserId)
+      }));
 
-    allEntries.sort((a, b) => b.fortune - a.fortune);
+      // Если текущий игрок есть в списке, подставляем его актуальные локальные данные
+      const myIdx = players.findIndex(p => p.isUser);
+      if (myIdx !== -1) {
+        players[myIdx].fortune = Math.max(players[myIdx].fortune, myFortune);
+        players[myIdx].name = myName;
+        players[myIdx].avatar = myAvatar;
+        players[myIdx].tier = myTierName;
+      } else {
+        // Если игрока еще нет в полученном топе
+        if (players.length < 10) {
+          players.push({
+            userId: myUserId,
+            name: myName,
+            avatar: myAvatar,
+            fortune: myFortune,
+            tier: myTierName,
+            isUser: true
+          });
+        }
+      }
 
-    const userRank = allEntries.findIndex(e => e.isUser) + 1;
-    const top10 = allEntries.slice(0, 10);
-    const userInTop10 = userRank <= 10;
+      players.sort((a, b) => b.fortune - a.fortune);
+      totalPlayers = Math.max(players.length, this.cloudLeaderboard.totalPlayers || 1);
+      userRank = this.cloudLeaderboard.userRank || (players.findIndex(p => p.isUser) + 1 || 1);
+    } else {
+      // Автономный режим до синхронизации: отображается только сам игрок (Никаких ботов!)
+      players = [{
+        userId: myUserId,
+        name: myName,
+        avatar: myAvatar,
+        fortune: myFortune,
+        tier: myTierName,
+        isUser: true
+      }];
+      userRank = 1;
+      totalPlayers = 1;
+    }
+
+    const top10 = players.slice(0, 10);
+    const userInTop10 = top10.some(p => p.isUser);
 
     let html = "";
     top10.forEach((item, idx) => {
@@ -2415,7 +2562,7 @@ class AtmGame {
         <div class="leaderboard-row ${item.isUser ? 'is-current-user' : ''}">
           <div class="lb-col-left">
             <div class="${rankClass}">${rankContent}</div>
-            <div class="lb-avatar-mini">${SVG_ICONS.chizhBirdColor}</div>
+            <div class="lb-avatar-mini">${getChizhAvatarSvg(item.avatar, 34)}</div>
             <div class="lb-player-details">
               <div class="lb-player-name">
                 <span>${item.name}</span>
@@ -2429,25 +2576,35 @@ class AtmGame {
       `;
     });
 
-    // Если игрок еще не вошел в топ-10, показываем его позицию ниже закрепленной строкой
-    if (!userInTop10) {
-      const gapToTop10 = top10[9].fortune - playerFortune;
+    // Если реальных игроков в базе больше 10, и текущий игрок на 11+ месте — прикрепляем его плашку внизу
+    if (!userInTop10 && userRank > 10) {
+      const tenthPlaceFortune = top10[top10.length - 1]?.fortune || 0;
+      const gapToTop10 = Math.max(0, tenthPlaceFortune - myFortune);
+
       html += `
-        <div class="leaderboard-row is-current-user pinned-user-row">
+        <div class="leaderboard-row is-current-user pinned-user-row" style="margin-top: 8px; border: 1.5px solid #00f2fe; background: rgba(0, 242, 254, 0.12);">
           <div class="lb-col-left">
             <div class="lb-rank-badge">#${userRank}</div>
-            <div class="lb-avatar-mini">${SVG_ICONS.chizhBirdColor}</div>
+            <div class="lb-avatar-mini">${getChizhAvatarSvg(myAvatar, 34)}</div>
             <div class="lb-player-details">
               <div class="lb-player-name">
-                <span>${playerName}</span>
+                <span>${myName}</span>
                 <span class="lb-you-tag">ВЫ</span>
               </div>
-              <span class="lb-player-tier">${playerTier}</span>
+              <span class="lb-player-tier">${myTierName}</span>
             </div>
           </div>
-          <div class="lb-fortune">${this.formatMoney(playerFortune)}</div>
+          <div class="lb-fortune">${this.formatMoney(myFortune)}</div>
         </div>
         <div class="lb-gap-note">До Топ-10 осталось заработать: ${this.formatMoney(gapToTop10)}</div>
+      `;
+    }
+
+    if (totalPlayers < 10) {
+      html += `
+        <div style="text-align: center; font-size: 10px; color: #64748b; padding: 10px 4px 4px 4px;">
+          🌐 Реальных игроков в сети ChizhBank: ${totalPlayers} чел.
+        </div>
       `;
     }
 
@@ -2507,6 +2664,13 @@ class AtmGame {
         this.checkAchievements();
         this.renderCareerUI();
         this.renderIpoUI();
+
+        // Каждые 15 секунд автоматически синхронизируем мировой рейтинг реальных игроков
+        const nowMs = Date.now();
+        if (nowMs - (this.lastLeaderboardFetch || 0) > 15000) {
+          this.lastLeaderboardFetch = nowMs;
+          this.fetchCloudLeaderboard();
+        }
       }
     }, 100);
 

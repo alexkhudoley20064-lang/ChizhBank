@@ -741,3 +741,194 @@ function getIconSvg(name, extraClass = "") {
   const svg = SVG_ICONS[name] || "";
   return `<span class="icon-svg-wrapper ${extraClass}">${svg}</span>`;
 }
+
+// ---------------------------------------------------------------------------
+// 10 НЕОНОВЫХ КОЛЛЕКЦИОННЫХ АВАТАРОВ БАНКИРА CHIZHBANK
+// Полное соответствие фирменному визуалу: неоновые кольца, стилизованный чиж
+// ---------------------------------------------------------------------------
+const CHIZH_AVATARS = [
+  {
+    id: "avatar_1",
+    name: "Серебряный Титан",
+    neonColor: "#ffffff",
+    glowColor: "rgba(255, 255, 255, 0.95)",
+    discColor: "#262626",
+    innerRing: "#52525b",
+    bodyColor: "#e4e4e7",
+    wingColor: "#71717a",
+    crestColor: "#ffffff",
+    beakColor: "#d4d4d8",
+    wingAccent: "#a1a1aa",
+    eyeColor: "#18181b"
+  },
+  {
+    id: "avatar_2",
+    name: "Классический Чиж",
+    neonColor: "#ef4444",
+    glowColor: "rgba(239, 68, 68, 0.95)",
+    discColor: "#172554",
+    innerRing: "#1e3a8a",
+    bodyColor: "#ffd000",
+    wingColor: "#0284c7",
+    crestColor: "#ffd000",
+    beakColor: "#f97316",
+    wingAccent: "#00f2fe",
+    eyeColor: "#0f172a"
+  },
+  {
+    id: "avatar_3",
+    name: "Лаймовый Неон",
+    neonColor: "#22c55e",
+    glowColor: "rgba(34, 197, 94, 0.95)",
+    discColor: "#1c1917",
+    innerRing: "#3f2512",
+    bodyColor: "#f97316",
+    wingColor: "#c2410c",
+    crestColor: "#f97316",
+    beakColor: "#fde047",
+    wingAccent: "#fb923c",
+    eyeColor: "#18181b"
+  },
+  {
+    id: "avatar_4",
+    name: "Электрик Блю",
+    neonColor: "#3b82f6",
+    glowColor: "rgba(59, 130, 246, 0.95)",
+    discColor: "#2e1065",
+    innerRing: "#581c87",
+    bodyColor: "#84cc16",
+    wingColor: "#4d7c0f",
+    crestColor: "#84cc16",
+    beakColor: "#a3e635",
+    wingAccent: "#bef264",
+    eyeColor: "#0f172a"
+  },
+  {
+    id: "avatar_5",
+    name: "Неоновый Розовый",
+    neonColor: "#ec4899",
+    glowColor: "rgba(236, 72, 153, 0.95)",
+    discColor: "#042f2e",
+    innerRing: "#115e59",
+    bodyColor: "#14b8a6",
+    wingColor: "#0f766e",
+    crestColor: "#14b8a6",
+    beakColor: "#5eead4",
+    wingAccent: "#2dd4bf",
+    eyeColor: "#0f172a"
+  },
+  {
+    id: "avatar_6",
+    name: "Кибер-Циан",
+    neonColor: "#06b6d4",
+    glowColor: "rgba(6, 182, 212, 0.95)",
+    discColor: "#0c1b33",
+    innerRing: "#1e3a5f",
+    bodyColor: "#d946ef",
+    wingColor: "#86198f",
+    crestColor: "#d946ef",
+    beakColor: "#f472b6",
+    wingAccent: "#f0abfc",
+    eyeColor: "#0f172a"
+  },
+  {
+    id: "avatar_7",
+    name: "Солнечное Золото",
+    neonColor: "#facc15",
+    glowColor: "rgba(250, 204, 21, 0.95)",
+    discColor: "#3b0707",
+    innerRing: "#7f1d1d",
+    bodyColor: "#2563eb",
+    wingColor: "#1e40af",
+    crestColor: "#2563eb",
+    beakColor: "#93c5fd",
+    wingAccent: "#38bdf8",
+    eyeColor: "#0f172a"
+  },
+  {
+    id: "avatar_8",
+    name: "Ультрафиолет",
+    neonColor: "#a855f7",
+    glowColor: "rgba(168, 85, 247, 0.95)",
+    discColor: "#3b0764",
+    innerRing: "#6b21a8",
+    bodyColor: "#d97706",
+    wingColor: "#92400e",
+    crestColor: "#d97706",
+    beakColor: "#fde047",
+    wingAccent: "#fbbf24",
+    eyeColor: "#0f172a"
+  },
+  {
+    id: "avatar_9",
+    name: "Янтарный Закат",
+    neonColor: "#f97316",
+    glowColor: "rgba(249, 115, 22, 0.95)",
+    discColor: "#0f172a",
+    innerRing: "#334155",
+    bodyColor: "#7c3aed",
+    wingColor: "#5b21b6",
+    crestColor: "#7c3aed",
+    beakColor: "#c084fc",
+    wingAccent: "#a78bfa",
+    eyeColor: "#0f172a"
+  },
+  {
+    id: "avatar_10",
+    name: "Рубиновый Титан",
+    neonColor: "#d97706",
+    glowColor: "rgba(217, 119, 6, 0.85)",
+    discColor: "#18181b",
+    innerRing: "#3f3f46",
+    bodyColor: "#dc2626",
+    wingColor: "#7f1d1d",
+    crestColor: "#dc2626",
+    beakColor: "#f87171",
+    wingAccent: "#ef4444",
+    eyeColor: "#18181b"
+  }
+];
+
+function getChizhAvatarSvg(avatarId = "avatar_2", size = 48) {
+  const av = CHIZH_AVATARS.find(a => a.id === avatarId) || CHIZH_AVATARS[1];
+  return `
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" fill="none" xmlns="http://www.w3.org/2000/svg" class="chizh-avatar-svg" style="display:block; overflow:visible;">
+      <defs>
+        <filter id="neonGlow_${av.id}_${size}" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      <!-- Внешнее неоновое кольцо с мягким ореолом -->
+      <circle cx="50" cy="50" r="44" stroke="${av.neonColor}" stroke-width="4.5" filter="url(#neonGlow_${av.id}_${size})" opacity="0.95"/>
+      <circle cx="50" cy="50" r="44" stroke="${av.neonColor}" stroke-width="2.5"/>
+
+      <!-- Внутренний темный базовый диск -->
+      <circle cx="50" cy="50" r="39" fill="${av.discColor}"/>
+      <circle cx="50" cy="50" r="34" stroke="${av.innerRing}" stroke-width="1.8" fill="none"/>
+
+      <!-- Хохолок птицы на макушке -->
+      <path d="M46 22 C44 14 36 10 32 12 C38 12 43 16 46 22 Z" fill="${av.crestColor}"/>
+      <path d="M48 24 C46 16 40 12 36 13 C41 14 45 18 48 24 Z" fill="${av.neonColor}" opacity="0.6"/>
+
+      <!-- Тело чижа с хвостиком -->
+      <path d="M40 24 C28 29 23 41 23 54 C23 68 35 77 50 77 C65 77 75 68 75 56 C75 44 65 37 54 31 Z" fill="${av.bodyColor}"/>
+      <polygon points="62,68 76,78 70,81 56,74" fill="${av.bodyColor}"/>
+
+      <!-- Крыло на боку -->
+      <path d="M46 41 C55 45 64 53 64 65 C64 69 60 72 55 73 C65 71 72 63 72 52 C72 43 64 36 48 34 Z" fill="${av.wingColor}"/>
+      <path d="M49 46 C56 48 61 55 59 64 C62 58 63 51 59 46 Z" fill="${av.wingAccent}"/>
+
+      <!-- Острый клювик -->
+      <polygon points="29,29 13,34 29,41" fill="${av.beakColor}"/>
+
+      <!-- Глаз с белым бликом -->
+      <circle cx="37" cy="30" r="3.2" fill="${av.eyeColor}"/>
+      <circle cx="36" cy="29" r="1.1" fill="#ffffff"/>
+    </svg>
+  `;
+}

@@ -8,7 +8,12 @@
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   
-  <link rel="stylesheet" href="style.css?v=9">
+  <script>
+    // Публичный адрес бэкенда Cloudflare Workers + D1 Database
+    window.CHIZHBANK_CLOUD_URL = window.CHIZHBANK_CLOUD_URL || localStorage.getItem("chizhbank_cloud_url") || "https://chizhbank-api.alexkhudoley20064.workers.dev";
+  </script>
+  
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
   <!-- Контейнер эффектов поверх экрана (купюры, клики, конфетти) -->
@@ -183,6 +188,15 @@
           <button id="saveNewNicknameBtn" class="btn-save-nick">Сменить</button>
         </div>
         <div id="nickChangeSuccessMsg" class="nick-success-tag hidden">✓ Никнейм успешно сохранен!</div>
+      </div>
+
+      <!-- ВЫБОР АВАТАРА БАНКИРА (10 НЕОНОВЫХ ЧИЖЕЙ) -->
+      <div class="stats-card avatar-selection-card" style="margin-bottom: 12px;">
+        <div style="font-size: 13px; font-weight: 900; color: #fff; margin-bottom: 4px;">Аватар Банкира</div>
+        <div style="font-size: 10px; color: #94a3b8; margin-bottom: 8px;">Нажмите на чижа, чтобы сменить аватар профиля:</div>
+        <div class="avatar-select-grid" id="profileAvatarGrid">
+          <!-- 10 коллекционных аватаров -->
+        </div>
       </div>
 
       <!-- КАРЬЕРА И РАНГ БАНКИРА -->
@@ -403,16 +417,20 @@
       </div>
     </div>
 
-    <!-- Модальное окно первого входа / ввод никнейма -->
+    <!-- Модальное окно первого входа / ввод никнейма и выбор аватара -->
     <div id="nicknameModal" class="modal-overlay hidden">
-      <div class="modal-card nickname-modal-card">
+      <div class="modal-card nickname-modal-card" style="max-height: 90vh; overflow-y: auto;">
         <div class="modal-chizh-hero" id="modalChizhHero"></div>
-        <h3 style="margin-top: 8px;">Добро пожаловать в ChizhBank!</h3>
-        <p style="margin-bottom: 12px;">Создайте свой профиль банкира. Как к вам обращаться?</p>
+        <h3 style="margin-top: 6px;">Добро пожаловать в ChizhBank!</h3>
+        <p style="margin-bottom: 8px;">Создайте свой профиль банкира. Как к вам обращаться?</p>
         <div class="nickname-form-row">
           <input type="text" id="initialNicknameInput" class="nickname-input" placeholder="Введите ваш никнейм" maxlength="15" autocomplete="off" />
         </div>
-        <button id="saveInitialNicknameBtn" class="btn-claim" style="margin-top: 14px;">Начать карьеру банкира</button>
+        <div style="margin: 12px 0 4px 0; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Выберите ваш аватар:</div>
+        <div class="avatar-select-grid" id="initialAvatarGrid">
+          <!-- 10 коллекционных неоновых аватаров чижа -->
+        </div>
+        <button id="saveInitialNicknameBtn" class="btn-claim" style="margin-top: 12px;">Начать карьеру банкира</button>
       </div>
     </div>
 
@@ -467,8 +485,8 @@
     </nav>
   </div>
 
-  <script src="icons.js?v=9"></script>
-  <script src="atm-models.js?v=9"></script>
-  <script src="game.js?v=9"></script>
+  <script src="icons.js?v=10"></script>
+  <script src="atm-models.js?v=10"></script>
+  <script src="game.js?v=10"></script>
 </body>
 </html>
