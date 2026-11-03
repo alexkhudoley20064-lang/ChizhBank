@@ -423,7 +423,12 @@ const BONUS_CARDS = [
 
 const sounds = new SoundEngine();
 
+let lastHapticTime = 0;
 function triggerHaptic(type = 'light') {
+  const now = performance.now();
+  if (type === 'light' && now - lastHapticTime < 45) return;
+  lastHapticTime = now;
+
   if (tg?.HapticFeedback) {
     if (type === 'light') tg.HapticFeedback.impactOccurred('light');
     else if (type === 'medium') tg.HapticFeedback.impactOccurred('medium');
@@ -471,10 +476,10 @@ const UPGRADE_CONFIGS = [
     id: "recharge_speed",
     iconName: "recharge",
     name: "Скорость инкассации",
-    desc: "+0.28 энергии в сек.",
+    desc: "+0.42 энергии в сек.",
     baseCost: 100,
     costMultiplier: 1.50,
-    effectPerLevel: 0.275
+    effectPerLevel: 0.42
   },
   {
     id: "crit_luck",
@@ -575,7 +580,7 @@ class AtmGame {
       frenziesTriggered: 0,
       energy: 500,
       maxEnergy: 500,
-      energyRechargeRate: 0.935, // +10% быстрее (было 0.85)
+      energyRechargeRate: 1.41, // +50% ускорение регенерации (было 0.935)
       baseTapPower: 1,
       critChance: 0.03,
       atmTierIndex: 0,
@@ -640,8 +645,18 @@ class AtmGame {
           }
         }
 
-        if (!this.state.energyRechargeRate || this.state.energyRechargeRate <= 0.85) {
-          this.state.energyRechargeRate = 0.935;
+        if (!this.state.energyRechargeRate || this.state.energyRechargeRate < 1.41) {
+          this.state.energyRechargeRate = 1.41;
+        }
+
+        // Автоматическое восстановление энергии в офлайне (даже когда игрока нет в игре)
+        const now = Date.now();
+        const last = this.state.lastSaveTime || now;
+        const diffSec = Math.max(0, Math.floor((now - last) / 1000));
+        if (diffSec > 0) {
+          const maxE = this.getMaxEnergy();
+          const rechargeRate = this.getRechargeRate();
+          this.state.energy = Math.min(maxE, (this.state.energy !== undefined ? this.state.energy : maxE) + diffSec * rechargeRate);
         }
 
         if (!this.state.tierProgress || typeof this.state.tierProgress !== "object") {
@@ -835,7 +850,7 @@ class AtmGame {
 
   getRechargeRate() {
     const upgradeLevel = this.getUpgradeLevel("recharge_speed");
-    const base = Math.max(0.935, (this.state.energyRechargeRate || 0.935));
+    const base = Math.max(1.41, (this.state.energyRechargeRate || 1.41));
     return base + upgradeLevel * UPGRADE_CONFIGS[2].effectPerLevel;
   }
 
@@ -1203,15 +1218,15 @@ class AtmGame {
       this.flashScreenMsg("НЕТ ЭНЕРГИИ!", "#ff3366");
       const energyWrap = document.querySelector(".energy-wrapper");
       if (energyWrap) {
-        energyWrap.classList.remove("shake-energy");
-        void energyWrap.offsetWidth;
         energyWrap.classList.add("shake-energy");
+        clearTimeout(this.energyShakeTimer);
+        this.energyShakeTimer = setTimeout(() => energyWrap.classList.remove("shake-energy"), 350);
       }
       return;
     }
 
     if (!this.frenzyActive) {
-      // Энергия тратится быстрее (2 ед. за тап)
+      // Энергия тратится по 2 ед. за тап
       this.state.energy = Math.max(0, this.state.energy - 2);
     }
 
@@ -1247,23 +1262,33 @@ class AtmGame {
     this.state.totalEarned += earned;
     this.state.totalClicks++;
 
+    // Высокооптимизированная тактильная анимация банкомата (без принудительного reflow offsetWidth)
     const atmWrapper = document.getElementById("atmWrapper");
-    atmWrapper.classList.remove("tapped");
-    atmWrapper.classList.remove("atm-punch");
-    void atmWrapper.offsetWidth;
-    atmWrapper.classList.add("tapped");
-    atmWrapper.classList.add("atm-punch");
-    setTimeout(() => atmWrapper.classList.remove("atm-punch"), 80);
+    if (atmWrapper) {
+      atmWrapper.classList.add("atm-punch");
+      clearTimeout(this.tapPunchTimer);
+      this.tapPunchTimer = setTimeout(() => atmWrapper.classList.remove("atm-punch"), 60);
+    }
     sounds.playCashRustle();
 
-    const dispenserEl = document.getElementById("cashDispenser") || atmWrapper;
-    const dispenserRect = dispenserEl.getBoundingClientRect();
-    const spawnX = dispenserRect.left + dispenserRect.width / 2;
-    const spawnY = dispenserRect.top + dispenserRect.height / 2;
-    this.spawnBanknotes(spawnX, spawnY, isCrit ? 5 : 2);
+    // Кэшированные координаты лотка (избегает getBoundingClientRect на каждый тап)
+    if (!this.cachedDispenserPos || now - (this.lastDispenserCheck || 0) > 4000) {
+      const dispenserEl = document.getElementById("cashDispenser") || atmWrapper;
+      if (dispenserEl) {
+        const rect = dispenserEl.getBoundingClientRect();
+        this.cachedDispenserPos = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        };
+        this.lastDispenserCheck = now;
+      }
+    }
+    const spawnX = (this.cachedDispenserPos && this.cachedDispenserPos.x) || (window.innerWidth / 2);
+    const spawnY = (this.cachedDispenserPos && this.cachedDispenserPos.y) || (window.innerHeight / 2);
+    this.spawnBanknotes(spawnX, spawnY, isCrit ? 3 : 1);
 
     const tapX = clientX || spawnX;
-    const tapY = clientY || (spawnY - 40);
+    const tapY = clientY || (spawnY - 30);
     this.spawnFloatingText(tapX, tapY, `+${this.formatMoney(earned)}`, isCrit);
 
     this.updateComboUI();
@@ -1337,6 +1362,13 @@ class AtmGame {
       this.state.balance -= cost;
       const progress = this.getTierProgress();
       progress.upgrades[upgradeId] = (progress.upgrades[upgradeId] || 0) + 1;
+
+      // При покупке увеличения батареи — мгновенно восстанавливаем 100% энергии!
+      if (upgradeId === "max_energy") {
+        this.state.energy = this.getMaxEnergy();
+        this.flashScreenMsg("БАТАРЕЯ 100%!", "#00ff88");
+      }
+
       sounds.playUpgrade();
       triggerHaptic("medium");
       this.saveState();
@@ -1389,6 +1421,10 @@ class AtmGame {
       // Инициализируем новую ветку бустеров на новом банкомате
       this.getTierProgress(nextTierIndex);
 
+      // Полное восстановление энергии при переходе на новый банкомат!
+      this.state.energy = this.getMaxEnergy();
+      this.cachedDispenserPos = null;
+
       sounds.playJackpot();
       triggerHaptic("success");
       this.updateAtmAppearance();
@@ -1405,6 +1441,9 @@ class AtmGame {
     const maxUnlocked = this.state.maxUnlockedTier !== undefined ? this.state.maxUnlockedTier : this.state.atmTierIndex;
     if (index >= 0 && index <= maxUnlocked && index < ATM_TIERS.length) {
       this.state.atmTierIndex = index;
+      // Полное восстановление энергии при выборе банкомата
+      this.state.energy = this.getMaxEnergy();
+      this.cachedDispenserPos = null;
       sounds.playTap();
       triggerHaptic("medium");
       this.updateAtmAppearance();
@@ -1442,6 +1481,13 @@ class AtmGame {
     const now = Date.now();
     const last = this.state.lastSaveTime || now;
     const diffSec = Math.floor((now - last) / 1000);
+
+    // Восстановление энергии в офлайне (даже когда игрока нет в игре)
+    if (diffSec > 0) {
+      const maxE = this.getMaxEnergy();
+      const recovered = diffSec * this.getRechargeRate();
+      this.state.energy = Math.min(maxE, (this.state.energy !== undefined ? this.state.energy : maxE) + recovered);
+    }
 
     const passive = this.getPassiveIncome();
     // Офлайн доход начисляется при отсутствии от 30 секунд.
@@ -2409,23 +2455,32 @@ class AtmGame {
   }
 
   renderUI() {
-    document.getElementById("balanceDisplay").textContent = this.formatMoney(this.state.balance);
-    document.getElementById("incomeRateDisplay").textContent = `+${this.formatMoney(this.getPassiveIncome())}/сек`;
-
-    const screenTapVal = document.getElementById("screenTapVal");
-    if (screenTapVal) {
-      screenTapVal.textContent = `+${this.formatMoney(this.getTapPower())}`;
+    if (!this.cachedUIEls) {
+      this.cachedUIEls = {
+        balance: document.getElementById("balanceDisplay"),
+        income: document.getElementById("incomeRateDisplay"),
+        screenTap: document.getElementById("screenTapVal"),
+        curEnergy: document.getElementById("currentEnergy"),
+        maxEnergy: document.getElementById("maxEnergy"),
+        energyFill: document.getElementById("energyBarFill")
+      };
     }
+    const els = this.cachedUIEls;
+    if (els.balance) els.balance.textContent = this.formatMoney(this.state.balance);
+    if (els.income) els.income.textContent = `+${this.formatMoney(this.getPassiveIncome())}/сек`;
+    if (els.screenTap) els.screenTap.textContent = `+${this.formatMoney(this.getTapPower())}`;
 
     const maxE = this.getMaxEnergy();
-    document.getElementById("currentEnergy").textContent = Math.floor(this.state.energy);
-    document.getElementById("maxEnergy").textContent = maxE;
+    if (els.curEnergy) els.curEnergy.textContent = Math.floor(this.state.energy);
+    if (els.maxEnergy) els.maxEnergy.textContent = maxE;
     const energyPct = Math.max(0, Math.min(100, (this.state.energy / maxE) * 100));
-    document.getElementById("energyBarFill").style.width = `${energyPct}%`;
+    if (els.energyFill) els.energyFill.style.width = `${energyPct}%`;
   }
 
   startLoops() {
     let lastTick = performance.now();
+    let slowTickCounter = 0;
+
     setInterval(() => {
       const now = performance.now();
       const dt = (now - lastTick) / 1000;
@@ -2443,13 +2498,19 @@ class AtmGame {
         this.state.energy = Math.min(maxE, this.state.energy + this.getRechargeRate() * dt);
       }
 
-      this.checkAchievements();
-      this.renderCareerUI();
-      this.renderIpoUI();
       this.renderUI();
+
+      // Оптимизация: тяжелые проверки рангов, IPO и ачивок запускаются раз в секунду
+      slowTickCounter += dt;
+      if (slowTickCounter >= 1.0) {
+        slowTickCounter = 0;
+        this.checkAchievements();
+        this.renderCareerUI();
+        this.renderIpoUI();
+      }
     }, 100);
 
-    setInterval(() => this.saveState(), 3000);
+    setInterval(() => this.saveState(), 4000);
 
     const renderParticlesLoop = () => {
       this.updateParticles();
@@ -2462,68 +2523,77 @@ class AtmGame {
     const resize = () => {
       this.canvas.width = window.innerWidth;
       this.canvas.height = window.innerHeight;
+      this.cachedDispenserPos = null;
     };
     window.addEventListener("resize", resize);
     resize();
   }
 
-  spawnBanknotes(originX, originY, count = 2) {
+  spawnBanknotes(originX, originY, count = 1) {
     const skinKey = this.state.activeBillSkin || "green";
     const skin = BILL_SKINS[skinKey] || BILL_SKINS.green;
 
+    // Ограничиваем количество активных частиц для идеальных 60 FPS
+    if (this.particles.length > 25) {
+      this.particles.splice(0, this.particles.length - 25);
+    }
+
     for (let i = 0; i < count; i++) {
-      const angle = (Math.random() * 80 - 40) * (Math.PI / 180);
-      const speed = 7 + Math.random() * 8;
+      const angle = (Math.random() * 70 - 35) * (Math.PI / 180);
+      const speed = 7 + Math.random() * 7;
       this.particles.push({
         type: "cash",
-        x: originX + (Math.random() - 0.5) * 35,
+        x: originX + (Math.random() - 0.5) * 30,
         y: originY,
         vx: Math.sin(angle) * speed,
         vy: -Math.cos(angle) * speed,
         gravity: 0.38,
         rotation: (Math.random() - 0.5) * 0.4,
-        vRot: (Math.random() - 0.5) * 0.16,
+        vRot: (Math.random() - 0.5) * 0.14,
         rotY: Math.random() * Math.PI,
         vRotY: 0.12 + Math.random() * 0.12,
         width: 38,
         height: 20,
         life: 1.0,
-        decay: 0.016 + Math.random() * 0.008,
+        decay: 0.022 + Math.random() * 0.01,
         skin: skin
       });
     }
   }
 
   spawnFloatingText(x, y, text, isCrit = false) {
+    if (this.particles.length > 25) {
+      this.particles.splice(0, this.particles.length - 25);
+    }
     this.particles.push({
       type: "text",
       text: text,
-      x: x + (Math.random() - 0.5) * 30,
+      x: x + (Math.random() - 0.5) * 20,
       y: y - 20,
-      vx: (Math.random() - 0.5) * 2,
-      vy: -(3.5 + Math.random() * 2),
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: -(3.5 + Math.random() * 1.5),
       isCrit: isCrit,
       life: 1.0,
-      decay: 0.02
+      decay: 0.028
     });
   }
 
   spawnConfetti() {
     const colors = ["#ffd700", "#00f2fe", "#00ff88", "#ff3366", "#ffffff"];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 40; i++) {
       this.particles.push({
         type: "confetti",
         color: colors[Math.floor(Math.random() * colors.length)],
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
-        vx: (Math.random() - 0.5) * 16,
-        vy: (Math.random() - 0.5) * 16 - 4,
+        vx: (Math.random() - 0.5) * 14,
+        vy: (Math.random() - 0.5) * 14 - 4,
         gravity: 0.25,
-        size: 5 + Math.random() * 6,
+        size: 5 + Math.random() * 5,
         rotation: Math.random() * Math.PI * 2,
         vRot: (Math.random() - 0.5) * 0.3,
         life: 1.0,
-        decay: 0.012
+        decay: 0.015
       });
     }
   }
@@ -2556,76 +2626,46 @@ class AtmGame {
         this.ctx.scale(scaleX, 1);
 
         const skin = p.skin || BILL_SKINS[this.state.activeBillSkin] || BILL_SKINS.green;
-        const w = 46;
-        const h = 24;
+        const w = 44;
+        const h = 23;
         const hw = w / 2;
         const hh = h / 2;
 
-        // Тень банкноты
-        this.ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-        this.ctx.shadowBlur = 4;
-
-        // Основное тело банкноты
+        // Основное тело банкноты (без тормозящего shadowBlur)
         this.ctx.fillStyle = skin.color;
         this.ctx.fillRect(-hw, -hh, w, h);
-
-        this.ctx.shadowColor = "transparent";
 
         // Двойной защитный гильош-кант
         this.ctx.strokeStyle = skin.border;
         this.ctx.lineWidth = 1.2;
         this.ctx.strokeRect(-hw + 1.5, -hh + 1.5, w - 3, h - 3);
 
-        this.ctx.strokeStyle = skin.accent || "#ffffff";
-        this.ctx.lineWidth = 0.5;
-        this.ctx.strokeRect(-hw + 3, -hh + 3, w - 6, h - 6);
-
         // Голографическая защитная нить
         this.ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-        this.ctx.fillRect(-hw + 7, -hh + 3, 2.5, h - 6);
+        this.ctx.fillRect(-hw + 7, -hh + 2, 2.5, h - 4);
 
-        // Центральный овальный медальон
+        // Центральный медальон
         this.ctx.beginPath();
-        this.ctx.ellipse(0, 0, 8, 7, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(0, 0, 7, 6, 0, 0, Math.PI * 2);
         this.ctx.fillStyle = skin.innerColor || skin.border;
         this.ctx.fill();
         this.ctx.strokeStyle = skin.accent || "#ffffff";
         this.ctx.stroke();
 
-        // Номинал по углам 100
+        // Центральный знак $
         this.ctx.fillStyle = skin.text;
-        this.ctx.font = "bold 5px -apple-system, sans-serif";
+        this.ctx.font = "900 8.5px -apple-system, sans-serif";
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
-        this.ctx.fillText("100", -hw + 6, -hh + 5.5);
-        this.ctx.fillText("100", hw - 6, hh - 5.5);
-
-        // Центральный знак $
-        this.ctx.font = "900 8.5px -apple-system, sans-serif";
         this.ctx.fillText("$", 0, 0.5);
-
-        // Серийный номер
-        this.ctx.font = "4px monospace";
-        this.ctx.fillStyle = skin.accent || "#ffffff";
-        this.ctx.fillText(skin.serial || "CB 100", 0, hh - 4);
 
       } else if (p.type === "text") {
         p.x += p.vx;
         p.y += p.vy;
 
-        this.ctx.font = p.isCrit ? "900 24px -apple-system, sans-serif" : "800 18px -apple-system, sans-serif";
+        this.ctx.font = p.isCrit ? "900 22px -apple-system, sans-serif" : "800 16px -apple-system, sans-serif";
         this.ctx.textAlign = "center";
-
-        if (p.isCrit) {
-          this.ctx.shadowColor = "#ffd700";
-          this.ctx.shadowBlur = 12;
-          this.ctx.fillStyle = "#ffd700";
-        } else {
-          this.ctx.shadowColor = "#00f2fe";
-          this.ctx.shadowBlur = 8;
-          this.ctx.fillStyle = "#ffffff";
-        }
-
+        this.ctx.fillStyle = p.isCrit ? "#ffd700" : "#ffffff";
         this.ctx.fillText(p.text, p.x, p.y);
 
       } else if (p.type === "confetti") {
