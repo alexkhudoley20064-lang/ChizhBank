@@ -723,7 +723,7 @@ class AtmGame {
   }
 
   async syncWithCloud() {
-    const cloudUrl = window.CHIZHBANK_CLOUD_URL;
+    const cloudUrl = (window.CHIZHBANK_CLOUD_URL || "").replace(/\/+$/, "");
     const userId = this.getUserId();
     if (!cloudUrl || !userId) return;
 
@@ -746,7 +746,7 @@ class AtmGame {
   }
 
   async loadFromCloud() {
-    const cloudUrl = window.CHIZHBANK_CLOUD_URL;
+    const cloudUrl = (window.CHIZHBANK_CLOUD_URL || "").replace(/\/+$/, "");
     const userId = this.getUserId();
     if (!cloudUrl || !userId) return;
 
@@ -774,7 +774,7 @@ class AtmGame {
   }
 
   async fetchCloudLeaderboard() {
-    const cloudUrl = window.CHIZHBANK_CLOUD_URL;
+    const cloudUrl = (window.CHIZHBANK_CLOUD_URL || "").replace(/\/+$/, "");
     const userId = this.getUserId();
     if (!cloudUrl) return;
 
