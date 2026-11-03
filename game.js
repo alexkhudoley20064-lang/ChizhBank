@@ -792,6 +792,25 @@ class AtmGame {
     }
   }
 
+  shareProgress() {
+    sounds.init();
+    sounds.playJackpot();
+    triggerHaptic("success");
+
+    const fortune = this.formatMoney(this.state.totalEarned);
+    const tier = ATM_TIERS[this.state.atmTierIndex]?.name || "Ветеран 90-х";
+    const rank = this.getCareerRank()?.name || "Банкир";
+
+    const text = `🔥 Я заработал $${fortune} в ChizhBank!\n🏦 Ранг: ${rank} (${tier})\n👑 Попробуй побить мой рекорд в @lekkzhubBot !`;
+    const shareUrl = `https://t.me/share/url?url=https://t.me/lekkzhubBot&text=${encodeURIComponent(text)}`;
+
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(shareUrl);
+    } else {
+      window.open(shareUrl, "_blank");
+    }
+  }
+
   addMoney(amount = 1000000000000) {
     this.state.balance += amount;
     this.state.totalEarned += amount;
@@ -1269,6 +1288,13 @@ class AtmGame {
     });
 
     document.getElementById("resetDataBtn")?.addEventListener("click", () => this.resetProgress());
+
+    const handleShare = (e) => {
+      e?.preventDefault();
+      this.shareProgress();
+    };
+    document.getElementById("shareResultBtn")?.addEventListener("click", handleShare);
+    document.getElementById("shareResultBottomBtn")?.addEventListener("click", handleShare);
 
     let balanceClicks = 0;
     let balanceTimer = null;

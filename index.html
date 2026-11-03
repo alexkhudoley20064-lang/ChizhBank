@@ -13,7 +13,7 @@
     window.CHIZHBANK_CLOUD_URL = window.CHIZHBANK_CLOUD_URL || localStorage.getItem("chizhbank_cloud_url") || "https://chizhbank-api.alexkhudoley20064.workers.dev";
   </script>
   
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
   <!-- Контейнер эффектов поверх экрана (купюры, клики, конфетти) -->
@@ -188,6 +188,17 @@
           <button id="saveNewNicknameBtn" class="btn-save-nick">Сменить</button>
         </div>
         <div id="nickChangeSuccessMsg" class="nick-success-tag hidden">✓ Никнейм успешно сохранен!</div>
+      </div>
+
+      <!-- КНОПКА ПОДЕЛИТЬСЯ УСПЕХОМ В TELEGRAM -->
+      <div style="margin-bottom: 12px;">
+        <button id="shareResultBtn" class="btn-share-telegram">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor"/>
+          </svg>
+          <span>Поделиться успехом (@lekkzhubBot)</span>
+        </button>
       </div>
 
       <!-- ВЫБОР АВАТАРА БАНКИРА (10 НЕОНОВЫХ ЧИЖЕЙ) -->
@@ -385,6 +396,13 @@
       </div>
 
       <div class="reset-section" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button id="shareResultBottomBtn" class="btn-share-telegram" style="max-width: 250px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor"/>
+          </svg>
+          <span>Поделиться успехом</span>
+        </button>
         <button id="resetDataBtn" class="btn-danger">Сбросить прогресс</button>
       </div>
     </section>
@@ -485,8 +503,8 @@
     </nav>
   </div>
 
-  <script src="icons.js?v=10"></script>
-  <script src="atm-models.js?v=10"></script>
-  <script src="game.js?v=10"></script>
+  <script src="icons.js?v=11"></script>
+  <script src="atm-models.js?v=11"></script>
+  <script src="game.js?v=11"></script>
 </body>
 </html>
