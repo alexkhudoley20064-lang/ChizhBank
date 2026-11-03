@@ -760,7 +760,12 @@ class AtmGame {
           this.renderLists();
           this.updateAtmAppearance();
           this.updateNicknameUI();
+        } else {
+          // Если на сервере еще нет этого игрока или локальный прогресс новее — немедленно выгружаем в базу!
+          await this.syncWithCloud();
         }
+      } else {
+        await this.syncWithCloud();
       }
     } catch (e) {}
 
