@@ -199,14 +199,16 @@ html, body {
    ==================================================== */
 .tab-content {
   display: none;
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 16px 80px 16px;
-  -webkit-overflow-scrolling: touch;
+  flex: 1 1 0px !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding: 8px 16px calc(76px + var(--safe-bottom) + 36px) 16px !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
 }
 .tab-content.active {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 #mainScreen {
@@ -2265,6 +2267,8 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex-shrink: 0 !important;
+  touch-action: pan-y !important;
 }
 
 .upgrade-card {
@@ -2277,6 +2281,8 @@ html, body {
   padding: 12px 14px;
   backdrop-filter: blur(8px);
   transition: transform 0.1s;
+  flex-shrink: 0 !important;
+  touch-action: pan-y !important;
 }
 .upgrade-card:active { transform: scale(0.98); }
 
@@ -2322,6 +2328,7 @@ html, body {
   min-width: 82px;
   box-shadow: 0 4px 12px rgba(0, 242, 254, 0.2);
   transition: opacity 0.2s, transform 0.1s;
+  touch-action: manipulation;
 }
 .card-buy-btn:disabled {
   background: #252e3e;
@@ -3928,10 +3935,16 @@ body.theme-day .night-lantern-spotlight {
 /* ==========================================================================
    АККОРДЕОН (СВОРАЧИВАЕМЫЕ ВКЛАДКИ)
    ========================================================================== */
+#upgradesScreen,
+#businessScreen,
 #statsScreen {
   overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: touch !important;
+  min-height: 0 !important;
+  touch-action: pan-y !important;
 }
+#upgradesScreen > *,
+#businessScreen > *,
 #statsScreen > * {
   flex-shrink: 0 !important;
 }
