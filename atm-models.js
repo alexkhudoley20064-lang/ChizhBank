@@ -631,7 +631,7 @@ const ATM_MODELS = {
               <span class="crimson-status-tag">ГОТОВ К РАБОТЕ ●</span>
             </div>
             <div class="screen-crimson-body">
-              <div class="crimson-hero-heading">Бесплатная Chizh-Карта</div>
+              <div class="crimson-hero-heading" id="screenMsg">Бесплатная Chizh-Карта</div>
               <div class="crimson-card-monolith">
                 <div class="monolith-chizh-symbol">
                   ${SVG_ICONS.chizhBirdWhite}
@@ -707,7 +707,7 @@ const ATM_MODELS = {
               </div>
 
               <div class="top-ui-body">
-                <div class="ui-hero-headline">Совершенно новый банкомат ChizhBank</div>
+                <div class="ui-hero-headline" id="screenMsg">Совершенно новый банкомат ChizhBank</div>
                 <div class="ui-hero-desc">Переизобретён для людей • Face ID</div>
 
                 <div class="ui-button-cards-row">

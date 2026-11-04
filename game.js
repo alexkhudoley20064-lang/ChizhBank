@@ -46,6 +46,25 @@ class SoundEngine {
     osc.stop(this.ctx.currentTime + 0.05);
   }
 
+  playError() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [180, 130].forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now + i * 0.14);
+        gain.gain.setValueAtTime(0.2, now + i * 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.14 + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + i * 0.14);
+        osc.stop(now + i * 0.14 + 0.12);
+      });
+    } catch (e) {}
+  }
+
   playCrit() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;
@@ -1762,15 +1781,57 @@ class AtmGame {
 
   pinTimeExpired() {
     if (!this.pinChallenge.active) return;
-    triggerHaptic("heavy");
-    sounds.playTap();
-    this.flashScreenMsg("ВРЕМЯ ВЫШЛО!", "#ff3366");
-
     this.pinChallenge.active = false;
     this.pinChallenge.input = "";
+
     const modal = document.getElementById("pinPadModal");
     if (modal) modal.classList.add("hidden");
+
+    sounds.playError();
+    triggerHaptic("heavy");
+    this.flashScreenMsg("ВРЕМЯ ВЫШЛО!", "#ef4444");
+    this.showAtmPinError("ВРЕМЯ ВЫШЛО");
     this.schedulePinChallenge();
+  }
+
+  showAtmPinError(errorText = "НЕВЕРНЫЙ PIN") {
+    const atmWrapper = document.getElementById("atmWrapper");
+    if (!atmWrapper) return;
+
+    const oldBanner = document.getElementById("atmPinErrorBanner");
+    if (oldBanner) oldBanner.remove();
+
+    atmWrapper.classList.remove("atm-error-shake");
+    void atmWrapper.offsetWidth;
+    atmWrapper.classList.add("atm-error-shake");
+
+    const screenMsgEl = atmWrapper.querySelector("#screenMsg");
+    let originalMsg = "";
+    if (screenMsgEl) {
+      originalMsg = screenMsgEl.innerHTML;
+      screenMsgEl.innerHTML = `<span style="color: #ef4444; font-weight: 900;">❌ ${errorText}</span>`;
+    }
+
+    const banner = document.createElement("div");
+    banner.id = "atmPinErrorBanner";
+    banner.className = "atm-pin-error-banner";
+    banner.innerHTML = `
+      <div class="atm-error-badge-pulse">
+        <span class="aeb-icon">⛔</span>
+        <span class="aeb-title">${errorText}</span>
+        <small class="aeb-desc">ОШИБКА АВТОРИЗАЦИИ</small>
+      </div>
+    `;
+    atmWrapper.appendChild(banner);
+
+    clearTimeout(this.atmPinErrorTimer);
+    this.atmPinErrorTimer = setTimeout(() => {
+      if (banner && banner.parentNode) banner.remove();
+      atmWrapper.classList.remove("atm-error-shake");
+      if (screenMsgEl && originalMsg) {
+        screenMsgEl.innerHTML = originalMsg;
+      }
+    }, 3000);
   }
 
   handlePinKey(keyVal) {
@@ -1824,11 +1885,17 @@ class AtmGame {
       this.renderUI();
       this.schedulePinChallenge();
     } else {
-      triggerHaptic("heavy");
-      sounds.playTap();
+      this.pinChallenge.active = false;
       this.pinChallenge.input = "";
-      this.renderPinDots();
-      this.flashScreenMsg("НЕВЕРНЫЙ КОД!", "#ff3366");
+
+      const modal = document.getElementById("pinPadModal");
+      if (modal) modal.classList.add("hidden");
+
+      sounds.playError();
+      triggerHaptic("heavy");
+      this.flashScreenMsg("НЕВЕРНЫЙ PIN!", "#ef4444");
+      this.showAtmPinError("НЕВЕРНЫЙ PIN");
+      this.schedulePinChallenge();
     }
   }
 

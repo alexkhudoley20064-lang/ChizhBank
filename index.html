@@ -13,7 +13,7 @@
     window.CHIZHBANK_CLOUD_URL = "https://chizhbank-api.alex-khudoley20064.workers.dev";
   </script>
   
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
   <!-- Контейнер эффектов поверх экрана (купюры, клики, конфетти) -->
@@ -190,14 +190,14 @@
         <div id="nickChangeSuccessMsg" class="nick-success-tag hidden">✓ Никнейм успешно сохранен!</div>
       </div>
 
-      <!-- КНОПКА ПОДЕЛИТЬСЯ УСПЕХОМ В TELEGRAM -->
+      <!-- КНОПКА ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ В TELEGRAM -->
       <div style="margin-bottom: 12px;">
         <button id="shareResultBtn" class="btn-share-telegram">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor"/>
+          <svg class="tg-paper-plane-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="12" fill="#2AABEE"/>
+            <path d="M17.4 6.8L4.8 11.66C3.94 12.01 3.94 12.49 4.64 12.7L7.87 13.71L15.34 8.99C15.69 8.78 16.02 8.89 15.75 9.13L9.7 14.59L9.69 14.6L9.48 17.92C9.8 17.92 9.94 17.77 10.12 17.59L11.69 16.07L14.95 18.48C15.55 18.81 15.98 18.64 16.13 17.92L18.27 7.82C18.49 6.94 17.93 6.54 17.4 6.8Z" fill="white"/>
           </svg>
-          <span>Поделиться успехом (@lekkzhubBot)</span>
+          <span>Поделиться результатом</span>
         </button>
       </div>
 
@@ -392,16 +392,14 @@
           </div>
         </div>
       </div>
-        </div>
-      </div>
 
       <div class="reset-section" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-        <button id="shareResultBottomBtn" class="btn-share-telegram" style="max-width: 250px;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor"/>
+        <button id="shareResultBottomBtn" class="btn-share-telegram" style="max-width: 260px;">
+          <svg class="tg-paper-plane-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="12" fill="#2AABEE"/>
+            <path d="M17.4 6.8L4.8 11.66C3.94 12.01 3.94 12.49 4.64 12.7L7.87 13.71L15.34 8.99C15.69 8.78 16.02 8.89 15.75 9.13L9.7 14.59L9.69 14.6L9.48 17.92C9.8 17.92 9.94 17.77 10.12 17.59L11.69 16.07L14.95 18.48C15.55 18.81 15.98 18.64 16.13 17.92L18.27 7.82C18.49 6.94 17.93 6.54 17.4 6.8Z" fill="white"/>
           </svg>
-          <span>Поделиться успехом</span>
+          <span>Поделиться результатом</span>
         </button>
         <button id="resetDataBtn" class="btn-danger">Сбросить прогресс</button>
       </div>
@@ -503,8 +501,8 @@
     </nav>
   </div>
 
-  <script src="icons.js?v=14"></script>
-  <script src="atm-models.js?v=14"></script>
-  <script src="game.js?v=14"></script>
+  <script src="icons.js?v=15"></script>
+  <script src="atm-models.js?v=15"></script>
+  <script src="game.js?v=15"></script>
 </body>
 </html>
