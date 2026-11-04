@@ -55,6 +55,8 @@ html, body {
   width: 100%;
   max-width: 480px;
   height: 100%;
+  height: 100dvh;
+  height: var(--tg-viewport-height, 100dvh);
   margin: 0 auto;
   background: var(--bg-gradient);
   position: relative;
@@ -201,8 +203,9 @@ html, body {
   display: none;
   flex: 1 1 0px !important;
   min-height: 0 !important;
-  overflow-y: auto !important;
-  padding: 8px 16px calc(76px + var(--safe-bottom) + 36px) 16px !important;
+  overflow-y: scroll !important;
+  overscroll-behavior-y: contain;
+  padding: 8px 16px calc(76px + var(--safe-bottom) + 40px) 16px !important;
   -webkit-overflow-scrolling: touch !important;
   touch-action: pan-y !important;
 }
@@ -2280,11 +2283,12 @@ html, body {
   border-radius: 16px;
   padding: 12px 14px;
   backdrop-filter: blur(8px);
-  transition: transform 0.1s;
   flex-shrink: 0 !important;
   touch-action: pan-y !important;
 }
-.upgrade-card:active { transform: scale(0.98); }
+.upgrade-card * {
+  touch-action: pan-y !important;
+}
 
 .card-left {
   display: flex;
@@ -3938,10 +3942,11 @@ body.theme-day .night-lantern-spotlight {
 #upgradesScreen,
 #businessScreen,
 #statsScreen {
-  overflow-y: auto !important;
+  overflow-y: scroll !important;
   -webkit-overflow-scrolling: touch !important;
   min-height: 0 !important;
   touch-action: pan-y !important;
+  overscroll-behavior-y: contain;
 }
 #upgradesScreen > *,
 #businessScreen > *,

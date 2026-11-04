@@ -10,6 +10,9 @@ if (tg) {
   tg.expand();
   // Отключаем навязчивое окно подтверждения при выходе
   if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
+  // Отключаем свайпы Telegram для закрытия шторки в портретной ориентации
+  if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+  if (tg.isVerticalSwipesEnabled !== undefined) tg.isVerticalSwipesEnabled = false;
 }
 
 // --- Звуковой синтезатор (Web Audio API) ---
@@ -1191,6 +1194,37 @@ class AtmGame {
           this.fetchCloudLeaderboard();
         }
       });
+    });
+
+    // Гарантированный плавный тач-скролл для вкладок в портретной ориентации на iOS/Telegram
+    ["upgradesScreen", "businessScreen", "statsScreen"].forEach(tabId => {
+      const tabEl = document.getElementById(tabId);
+      if (!tabEl) return;
+      let startY = 0;
+      let startScrollTop = 0;
+      let isTouching = false;
+
+      tabEl.addEventListener("touchstart", (e) => {
+        if (e.touches && e.touches.length === 1) {
+          startY = e.touches[0].clientY;
+          startScrollTop = tabEl.scrollTop;
+          isTouching = true;
+        }
+      }, { passive: true });
+
+      tabEl.addEventListener("touchmove", (e) => {
+        if (!isTouching || !e.touches || e.touches.length !== 1) return;
+        const deltaY = e.touches[0].clientY - startY;
+        tabEl.scrollTop = startScrollTop - deltaY;
+      }, { passive: true });
+
+      tabEl.addEventListener("touchend", () => {
+        isTouching = false;
+      }, { passive: true });
+
+      tabEl.addEventListener("touchcancel", () => {
+        isTouching = false;
+      }, { passive: true });
     });
 
     this.updateSoundButton();
