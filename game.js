@@ -8,7 +8,8 @@ const tg = window.Telegram?.WebApp;
 if (tg) {
   tg.ready();
   tg.expand();
-  if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
+  // Отключаем навязчивое окно подтверждения при выходе
+  if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
 }
 
 // --- Звуковой синтезатор (Web Audio API) ---
@@ -722,10 +723,18 @@ class AtmGame {
     return localId;
   }
 
-  async syncWithCloud() {
+  async syncWithCloud(force = false) {
     const cloudUrl = (window.CHIZHBANK_CLOUD_URL || "").replace(/\/+$/, "");
     const userId = this.getUserId();
     if (!cloudUrl || !userId) return;
+
+    const now = Date.now();
+    // Оптимизация батареи: сохранение в облако не чаще раз в 30 секунд (фоновое),
+    // если только не передан force = true (при выходе, IPO, покупке банкомата)
+    if (!force && this.lastCloudSyncTime && (now - this.lastCloudSyncTime < 30000)) {
+      return;
+    }
+    this.lastCloudSyncTime = now;
 
     try {
       const payload = {
@@ -1575,6 +1584,7 @@ class AtmGame {
       triggerHaptic("success");
       this.updateAtmAppearance();
       this.saveState();
+      this.syncWithCloud(true);
       this.renderLists();
       this.renderUI();
       this.spawnConfetti();
@@ -1594,6 +1604,7 @@ class AtmGame {
       triggerHaptic("medium");
       this.updateAtmAppearance();
       this.saveState();
+      this.syncWithCloud(true);
       this.renderLists();
       this.renderUI();
       this.flashScreenMsg(ATM_TIERS[index].name, "#00f2fe");
@@ -1949,8 +1960,10 @@ class AtmGame {
     const targetX = startLeft ? window.innerWidth + 20 : -130;
     const startY = 140 + Math.random() * (window.innerHeight - 340);
 
-    cardEl.style.left = `${startX}px`;
-    cardEl.style.top = `${startY}px`;
+    cardEl.style.left = "0px";
+    cardEl.style.top = "0px";
+    cardEl.style.willChange = "transform";
+    cardEl.style.transform = `translate3d(${startX}px, ${startY}px, 0)`;
     document.body.appendChild(cardEl);
 
     let progress = 0;
@@ -1968,9 +1981,7 @@ class AtmGame {
       const curX = startX + (targetX - startX) * progress;
       const curY = startY + Math.sin(progress * Math.PI * 2) * 20;
       const tilt = (startLeft ? 1 : -1) * (3 + Math.sin(progress * Math.PI * 3) * 2.5);
-      cardEl.style.left = `${curX}px`;
-      cardEl.style.top = `${curY}px`;
-      cardEl.style.transform = `rotate(${tilt}deg)`;
+      cardEl.style.transform = `translate3d(${curX}px, ${curY}px, 0) rotate(${tilt}deg)`;
 
       requestAnimationFrame(animCard);
     };
@@ -2045,6 +2056,10 @@ class AtmGame {
     sounds.playTap();
     triggerHaptic("light");
     card.classList.toggle("open");
+    // Если игрок открыл лидерборд — моментально подтягиваем свежие данные из облака
+    if (cardId === "cardLeaderboard" && card.classList.contains("open")) {
+      this.fetchCloudLeaderboard();
+    }
   }
 
   // --- СИСТЕМА АЧИВОК: 1 АЧИВКА = 1 СКИН КУПЮР ---
@@ -2285,6 +2300,7 @@ class AtmGame {
     if (modal) modal.classList.add("hidden");
 
     this.saveState();
+    this.syncWithCloud(true);
     this.updateAtmAppearance();
     this.renderLists();
     this.renderUI();
@@ -2445,15 +2461,15 @@ class AtmGame {
     if (!grid) return;
 
     const tiers = [
-      { key: "tier1", photoRef: "Фото 1 • Уличный терминал 90-х", cost: 0 },
-      { key: "tier2", photoRef: "Фото 2 • Американский Genmega Ритейл", cost: 5000 },
-      { key: "tier3", photoRef: "Фото 3 • Изумрудный Металлик с козырьком", cost: 45000 },
-      { key: "tier4", photoRef: "Новое Фото 1 • Сапфировый Киоск", cost: 350000 },
-      { key: "tier5", photoRef: "Фото 4 • Солнечный Тотем", cost: 2500000 },
-      { key: "tier6", photoRef: "Новое Фото 2 • Маджента Ритейл Киоск", cost: 16000000 },
-      { key: "tier7", photoRef: "Новое Фото 3 • Алый Киоск с Бегущей Строкой", cost: 95000000 },
-      { key: "tier8", photoRef: "Новое Фото 4 • Перерисованный Двухэкранный Кокпит", cost: 650000000 },
-      { key: "tier9", photoRef: "Секретный финал • Квантовый Кибер-Банк 2077", cost: 4000000000 }
+      { key: "tier1", photoRef: "Поколение 1 • Уличный терминал 90-х", cost: 0 },
+      { key: "tier2", photoRef: "Поколение 2 • Графитовый Ритейл ChizhBank", cost: 5000 },
+      { key: "tier3", photoRef: "Поколение 3 • Изумрудный Металлик", cost: 45000 },
+      { key: "tier4", photoRef: "Поколение 4 • Сапфировый Киоск", cost: 350000 },
+      { key: "tier5", photoRef: "Поколение 5 • Солнечный Тотем", cost: 2500000 },
+      { key: "tier6", photoRef: "Поколение 6 • Маджента Неон Киоск", cost: 16000000 },
+      { key: "tier7", photoRef: "Поколение 7 • Алый Киоск со Светодиодной Строкой", cost: 95000000 },
+      { key: "tier8", photoRef: "Поколение 8 • Двухэкранный Кокпит OLED", cost: 650000000 },
+      { key: "tier9", photoRef: "Поколение 9 • Квантовый Кибер-Банк 2077", cost: 4000000000 }
     ];
 
     const maxUnlocked = this.state.maxUnlockedTier !== undefined ? this.state.maxUnlockedTier : this.state.atmTierIndex;
@@ -2669,9 +2685,30 @@ class AtmGame {
     let lastTick = performance.now();
     let slowTickCounter = 0;
 
+    // Реакция на сворачивание мини-приложения / блокировку экрана (Page Visibility API)
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        // При уходе в фон мгновенно сохраняем прогресс локально и в облако
+        this.saveState();
+        this.syncWithCloud(true);
+      } else {
+        lastTick = performance.now();
+        // При возвращении на экран начисляем офлайн-доход
+        this.checkOfflineProgress();
+      }
+    });
+
+    window.addEventListener("pagehide", () => {
+      this.saveState();
+      this.syncWithCloud(true);
+    });
+
     setInterval(() => {
+      // Когда экран выключен или вкладка скрыта — не тратим ресурсы процессора и батарею
+      if (document.hidden) return;
+
       const now = performance.now();
-      const dt = (now - lastTick) / 1000;
+      const dt = Math.min((now - lastTick) / 1000, 2.0);
       lastTick = now;
 
       const passive = this.getPassiveIncome();
@@ -2688,7 +2725,7 @@ class AtmGame {
 
       this.renderUI();
 
-      // Оптимизация: тяжелые проверки рангов, IPO и ачивок запускаются раз в секунду
+      // Оптимизация: проверки рангов, IPO и ачивок раз в секунду
       slowTickCounter += dt;
       if (slowTickCounter >= 1.0) {
         slowTickCounter = 0;
@@ -2696,22 +2733,39 @@ class AtmGame {
         this.renderCareerUI();
         this.renderIpoUI();
 
-        // Каждые 15 секунд автоматически синхронизируем мировой рейтинг реальных игроков
+        // Фоновый опрос лидерборда: раз в 60 сек только если аккордеон топа реально открыт
         const nowMs = Date.now();
-        if (nowMs - (this.lastLeaderboardFetch || 0) > 15000) {
+        const lbCard = document.getElementById("cardLeaderboard");
+        const isLbOpen = lbCard && lbCard.classList.contains("open");
+        if (isLbOpen && nowMs - (this.lastLeaderboardFetch || 0) > 60000) {
           this.lastLeaderboardFetch = nowMs;
           this.fetchCloudLeaderboard();
         }
       }
     }, 100);
 
+    // Локальное сохранение каждые 4 сек (0 сетевого трафика и 0 затрат радиомодуля)
     setInterval(() => this.saveState(), 4000);
+  }
 
-    const renderParticlesLoop = () => {
+  // Запуск цикла частиц только по требованию (когда есть активные частицы)
+  startParticleLoop() {
+    if (this.isParticleLoopRunning) return;
+    this.isParticleLoopRunning = true;
+
+    const render = () => {
+      if (!this.particles || this.particles.length === 0) {
+        if (this.ctx && this.canvas) {
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+        this.isParticleLoopRunning = false;
+        return;
+      }
       this.updateParticles();
-      requestAnimationFrame(renderParticlesLoop);
+      requestAnimationFrame(render);
     };
-    requestAnimationFrame(renderParticlesLoop);
+
+    requestAnimationFrame(render);
   }
 
   initCanvas() {
@@ -2754,6 +2808,8 @@ class AtmGame {
         skin: skin
       });
     }
+
+    this.startParticleLoop();
   }
 
   spawnFloatingText(x, y, text, isCrit = false) {
@@ -2771,6 +2827,8 @@ class AtmGame {
       life: 1.0,
       decay: 0.028
     });
+
+    this.startParticleLoop();
   }
 
   spawnConfetti() {
@@ -2791,6 +2849,8 @@ class AtmGame {
         decay: 0.015
       });
     }
+
+    this.startParticleLoop();
   }
 
   updateParticles() {

@@ -892,7 +892,7 @@ const CHIZH_AVATARS = [
 function getChizhAvatarSvg(avatarId = "avatar_2", size = 48) {
   const av = CHIZH_AVATARS.find(a => a.id === avatarId) || CHIZH_AVATARS[1];
   return `
-    <svg viewBox="0 0 100 100" width="${size}" height="${size}" fill="none" xmlns="http://www.w3.org/2000/svg" class="chizh-avatar-svg" style="display:block; overflow:visible;">
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" fill="none" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="chizh-avatar-svg" style="display:block; overflow:visible; aspect-ratio: 1 / 1;">
       <defs>
         <filter id="neonGlow_${av.id}_${size}" x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="3" result="blur" />
