@@ -1196,37 +1196,6 @@ class AtmGame {
       });
     });
 
-    // Гарантированный плавный тач-скролл для вкладок в портретной ориентации на iOS/Telegram
-    ["upgradesScreen", "businessScreen", "statsScreen"].forEach(tabId => {
-      const tabEl = document.getElementById(tabId);
-      if (!tabEl) return;
-      let startY = 0;
-      let startScrollTop = 0;
-      let isTouching = false;
-
-      tabEl.addEventListener("touchstart", (e) => {
-        if (e.touches && e.touches.length === 1) {
-          startY = e.touches[0].clientY;
-          startScrollTop = tabEl.scrollTop;
-          isTouching = true;
-        }
-      }, { passive: true });
-
-      tabEl.addEventListener("touchmove", (e) => {
-        if (!isTouching || !e.touches || e.touches.length !== 1) return;
-        const deltaY = e.touches[0].clientY - startY;
-        tabEl.scrollTop = startScrollTop - deltaY;
-      }, { passive: true });
-
-      tabEl.addEventListener("touchend", () => {
-        isTouching = false;
-      }, { passive: true });
-
-      tabEl.addEventListener("touchcancel", () => {
-        isTouching = false;
-      }, { passive: true });
-    });
-
     this.updateSoundButton();
     const soundBtn = document.getElementById("soundToggleBtn");
     soundBtn?.addEventListener("click", () => {
@@ -1287,35 +1256,37 @@ class AtmGame {
     document.querySelectorAll(".accordion-card").forEach((card) => {
       const header = card.querySelector(".accordion-header") || card;
       let startY = 0;
+      let startX = 0;
       let isScrolling = false;
 
       header.addEventListener("touchstart", (e) => {
         if (e.touches && e.touches[0]) {
           startY = e.touches[0].clientY;
+          startX = e.touches[0].clientX;
           isScrolling = false;
         }
       }, { passive: true });
 
       header.addEventListener("touchmove", (e) => {
         if (e.touches && e.touches[0]) {
-          if (Math.abs(e.touches[0].clientY - startY) > 8) {
+          const dy = Math.abs(e.touches[0].clientY - startY);
+          const dx = Math.abs(e.touches[0].clientX - startX);
+          if (dy > 6 || dx > 6) {
             isScrolling = true;
           }
         }
       }, { passive: true });
 
-      header.addEventListener("touchend", (e) => {
+      header.addEventListener("touchend", () => {
         if (!isScrolling) {
-          e.preventDefault();
-          e.stopPropagation();
           this.toggleAccordion(card.id);
         }
-      });
+      }, { passive: true });
 
-      header.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.toggleAccordion(card.id);
+      header.addEventListener("click", () => {
+        if (!window.matchMedia("(pointer: coarse)").matches) {
+          this.toggleAccordion(card.id);
+        }
       });
     });
 
@@ -1445,10 +1416,10 @@ class AtmGame {
       this.updateComboUI();
     }, 1200);
 
-    // Сбои банкомата происходят реже (кулдаун 75 сек, комбо от 35, шанс 3.5%)
+    // Сбои банкомата происходят при активной серии (кулдаун 40 сек, комбо от 16, шанс 4.5%)
     const now = Date.now();
-    const cooldownPassed = (now - (this.lastFrenzyEndTime || 0)) > 75000;
-    if (!this.frenzyActive && cooldownPassed && this.comboCount >= 35 && Math.random() < 0.035) {
+    const cooldownPassed = (now - (this.lastFrenzyEndTime || 0)) > 40000;
+    if (!this.frenzyActive && cooldownPassed && this.comboCount >= 16 && Math.random() < 0.045) {
       this.triggerFrenzy();
     }
 
@@ -1459,7 +1430,9 @@ class AtmGame {
       earned *= 5;
       triggerHaptic("heavy");
       sounds.playCrit();
-      this.flashScreenMsg("ДЖЕКПОТ x5!", "#ffd700");
+      if (!this.frenzyJustTriggered) {
+        this.flashScreenMsg("ДЖЕКПОТ x5!", "#ffd700");
+      }
     } else {
       triggerHaptic("light");
       sounds.playTap();
@@ -1506,14 +1479,17 @@ class AtmGame {
   triggerFrenzy() {
     this.frenzyActive = true;
     this.state.frenziesTriggered++;
+    this.frenzyJustTriggered = true;
+    setTimeout(() => { this.frenzyJustTriggered = false; }, 1500);
+
     sounds.playJackpot();
-    triggerHaptic("success");
+    triggerHaptic("heavy");
 
     const tier = ATM_TIERS[this.state.atmTierIndex] || ATM_TIERS[0];
     const theme = tier.frenzyTheme || {
-      accent: "#00ff88",
-      glow: "rgba(0, 255, 136, 0.7)",
-      bg: "linear-gradient(90deg, #047857, #10b981, #065f46)"
+      accent: "#ff0055",
+      glow: "rgba(255, 0, 85, 0.7)",
+      bg: "linear-gradient(90deg, #991b1b, #ef4444, #991b1b)"
     };
 
     const banner = document.getElementById("frenzyBanner");
@@ -1524,7 +1500,8 @@ class AtmGame {
       banner.classList.remove("hidden");
     }
 
-    this.flashScreenMsg("⚡ СБОЙ СИСТЕМЫ! ⚡", theme.accent || "#ff0055");
+    this.flashScreenMsg("🚨 БАНКОМАТ СЛОМАН! 🚨", theme.accent || "#ff0055");
+    this.spawnFloatingText(window.innerWidth / 2, 220, "🚨 БАНКОМАТ СЛОМАН! x3!", true);
 
     clearTimeout(this.frenzyTimer);
     this.frenzyTimer = setTimeout(() => {
@@ -2125,7 +2102,9 @@ class AtmGame {
       this.showCardToast(selectedCard, toastDesc);
       this.spawnFloatingText(e.clientX, e.clientY, `+${this.formatMoney(bonusReward)}!`, true);
       this.spawnConfetti();
-      this.flashScreenMsg(selectedCard.name.toUpperCase(), "#ffd700");
+      if (selectedCard.id !== "gold" && selectedCard.id !== "diamond") {
+        this.flashScreenMsg(selectedCard.name.toUpperCase(), "#ffd700");
+      }
       this.renderUI();
     };
   }

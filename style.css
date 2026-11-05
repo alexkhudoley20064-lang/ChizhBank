@@ -215,6 +215,7 @@ html, body {
 }
 
 #mainScreen {
+  position: relative !important;
   justify-content: space-between;
   align-items: center;
   padding-bottom: 84px;
@@ -223,7 +224,7 @@ html, body {
 
 .frenzy-banner {
   position: absolute;
-  top: 6px;
+  top: 8px;
   left: 10px;
   right: 10px;
   background: var(--frenzy-bg, linear-gradient(90deg, #047857 0%, #10b981 50%, #065f46 100%));
@@ -232,8 +233,9 @@ html, body {
   border-radius: 12px;
   box-shadow: 0 8px 30px var(--frenzy-glow, rgba(0, 255, 136, 0.7)), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   padding: 8px 12px;
-  z-index: 100;
+  z-index: 150;
   overflow: hidden;
+  pointer-events: none;
   animation: frenzySlideIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
@@ -3942,7 +3944,7 @@ body.theme-day .night-lantern-spotlight {
 #upgradesScreen,
 #businessScreen,
 #statsScreen {
-  overflow-y: scroll !important;
+  overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   min-height: 0 !important;
   touch-action: pan-y !important;
@@ -3952,6 +3954,18 @@ body.theme-day .night-lantern-spotlight {
 #businessScreen > *,
 #statsScreen > * {
   flex-shrink: 0 !important;
+}
+#statsScreen,
+#statsScreen *,
+.stats-card,
+.stats-card *:not(button):not(input),
+.career-rank-card,
+.career-rank-card *,
+.ipo-banner-card,
+.ipo-banner-card *:not(button),
+.accordion-card,
+.accordion-card *:not(button):not(input) {
+  touch-action: pan-y !important;
 }
 .accordion-card {
   margin-bottom: 12px;
@@ -3970,10 +3984,10 @@ body.theme-day .night-lantern-spotlight {
   padding: 4px 0;
   width: 100%;
   pointer-events: auto;
-  transition: transform 0.1s ease;
+  transition: opacity 0.15s ease;
 }
 .accordion-header:active {
-  transform: scale(0.985);
+  opacity: 0.82;
 }
 .accordion-header-left {
   display: flex;
