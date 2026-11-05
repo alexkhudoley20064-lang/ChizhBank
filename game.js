@@ -612,7 +612,8 @@ class AtmGame {
       upgrades: {},
       businesses: {},
       soundEnabled: true,
-      lastSaveTime: Date.now(),
+      lastSaveTime: 0,
+      ownerBonus30T: false,
       theme: (new Date().getHours() >= 21 || new Date().getHours() < 7) ? "night" : "day",
       chizhShares: 0,
       ipoCount: 0,
@@ -649,68 +650,149 @@ class AtmGame {
     this.schedulePinChallenge();
   }
 
+  isBankOwner() {
+    const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (user) {
+      const fn = (user.first_name || "").toLowerCase();
+      const un = (user.username || "").toLowerCase();
+      if (fn.includes("алексей") || fn.includes("alex") || un.includes("khudoley") || un.includes("alex")) {
+        return true;
+      }
+    }
+    const nick = (this.state.nickname || "").toLowerCase();
+    if (nick.includes("алексей") || nick.includes("alex")) return true;
+    return false;
+  }
+
+  // --- ХРАНИЛИЩЕ TELEGRAM CLOUD STORAGE (ВЕЧНОЕ, НА СЕРВЕРАХ TELEGRAM) ---
+  async getTgCloud(key) {
+    return new Promise((resolve) => {
+      if (!window.Telegram?.WebApp?.CloudStorage?.getItem) return resolve(null);
+      try {
+        window.Telegram.WebApp.CloudStorage.getItem(key, (err, val) => {
+          if (err || !val) return resolve(null);
+          try {
+            resolve(JSON.parse(val));
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  async setTgCloud(key, valObj) {
+    return new Promise((resolve) => {
+      if (!window.Telegram?.WebApp?.CloudStorage?.setItem) return resolve(false);
+      try {
+        const jsonStr = JSON.stringify(valObj);
+        window.Telegram.WebApp.CloudStorage.setItem(key, jsonStr, (err, success) => {
+          resolve(!err && success);
+        });
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  // Сравнение состояний: кандидат лучше текущего, если дальше по банкоматам или заработал больше
+  isBetterState(cand, curr) {
+    if (!cand || typeof cand !== "object") return false;
+    if (!curr || typeof curr !== "object") return true;
+
+    const candTier = cand.maxUnlockedTier !== undefined ? cand.maxUnlockedTier : (cand.atmTierIndex || 0);
+    const curTier = curr.maxUnlockedTier !== undefined ? curr.maxUnlockedTier : (curr.atmTierIndex || 0);
+    if (candTier > curTier) return true;
+    if (candTier < curTier) return false;
+
+    const candIpo = (cand.ipoCount || 0) + (cand.chizhShares || 0);
+    const curIpo = (curr.ipoCount || 0) + (curr.chizhShares || 0);
+    if (candIpo > curIpo) return true;
+    if (candIpo < curIpo) return false;
+
+    const candFortune = Number(cand.totalEarned || 0);
+    const curFortune = Number(curr.totalEarned || 0);
+    if (candFortune > curFortune) return true;
+    if (candFortune < curFortune) return false;
+
+    const candBalance = Number(cand.balance || 0);
+    const curBalance = Number(curr.balance || 0);
+    if (candBalance > curBalance) return true;
+    if (candBalance < curBalance) return false;
+
+    const candTime = Number(cand.lastSaveTime || 0);
+    const curTime = Number(curr.lastSaveTime || 0);
+    return candTime > curTime;
+  }
+
+  applyLoadedState(loaded) {
+    if (!loaded || typeof loaded !== "object") return;
+    this.state = Object.assign(this.state, loaded);
+
+    if (!this.state.theme) {
+      const h = new Date().getHours();
+      this.state.theme = (h >= 21 || h < 7) ? "night" : "day";
+    }
+    if (this.state.chizhShares === undefined) this.state.chizhShares = 0;
+    if (this.state.ipoCount === undefined) this.state.ipoCount = Math.max(0, Math.floor(this.state.chizhShares || 0));
+    if (!this.state.activeBillSkin) this.state.activeBillSkin = "green";
+    if (!this.state.achievements) this.state.achievements = {};
+    if (!this.state.unlockedSkins) this.state.unlockedSkins = { green: true };
+    for (const ach of ACHIEVEMENTS_CONFIG) {
+      if (this.state.achievements && this.state.achievements[ach.id]) {
+        this.state.unlockedSkins[ach.rewardSkinId] = true;
+      }
+    }
+
+    if (!this.state.selectedAvatar) this.state.selectedAvatar = "avatar_2";
+
+    if (!this.state.energyRechargeRate || this.state.energyRechargeRate < 1.70) {
+      this.state.energyRechargeRate = 1.70;
+    }
+
+    if (!this.state.tierProgress || typeof this.state.tierProgress !== "object") {
+      this.state.tierProgress = {};
+    }
+
+    if (this.state.maxUnlockedTier === undefined) {
+      this.state.maxUnlockedTier = this.state.atmTierIndex || 0;
+    }
+
+    if (this.state.maxUnlockedTier >= ATM_TIERS.length) {
+      this.state.maxUnlockedTier = ATM_TIERS.length - 1;
+    }
+    if (this.state.atmTierIndex >= ATM_TIERS.length) {
+      this.state.atmTierIndex = this.state.maxUnlockedTier;
+    }
+
+    const activeTier = this.state.atmTierIndex || 0;
+    if (!this.state.tierProgress[activeTier]) {
+      this.state.tierProgress[activeTier] = {
+        upgrades: Object.assign({}, this.state.upgrades || {}),
+        businesses: Object.assign({}, this.state.businesses || {})
+      };
+    }
+  }
+
   loadState() {
     try {
       const saved = localStorage.getItem("chizhbank_tycoon_save_v2");
       if (saved) {
         const parsed = JSON.parse(saved);
-        this.state = Object.assign(this.state, parsed);
-
-        if (!this.state.theme) {
-          const h = new Date().getHours();
-          this.state.theme = (h >= 21 || h < 7) ? "night" : "day";
-        }
-        if (this.state.chizhShares === undefined) this.state.chizhShares = 0;
-        if (this.state.ipoCount === undefined) this.state.ipoCount = Math.max(0, Math.floor(this.state.chizhShares || 0));
-        if (!this.state.activeBillSkin) this.state.activeBillSkin = "green";
-        if (!this.state.achievements) this.state.achievements = {};
-        if (!this.state.unlockedSkins) this.state.unlockedSkins = { green: true };
-        // Автоматически открываем скины за уже выполненные ачивки
-        for (const ach of ACHIEVEMENTS_CONFIG) {
-          if (this.state.achievements && this.state.achievements[ach.id]) {
-            this.state.unlockedSkins[ach.rewardSkinId] = true;
-          }
-        }
-
-        if (!this.state.selectedAvatar) this.state.selectedAvatar = "avatar_2";
-
-        if (!this.state.energyRechargeRate || this.state.energyRechargeRate < 1.70) {
-          this.state.energyRechargeRate = 1.70;
-        }
+        this.applyLoadedState(parsed);
 
         // Автоматическое восстановление энергии в офлайне (даже когда игрока нет в игре)
         const now = Date.now();
-        const last = this.state.lastSaveTime || now;
-        const diffSec = Math.max(0, Math.floor((now - last) / 1000));
-        if (diffSec > 0) {
-          const maxE = this.getMaxEnergy();
-          const rechargeRate = this.getRechargeRate();
-          this.state.energy = Math.min(maxE, (this.state.energy !== undefined ? this.state.energy : maxE) + diffSec * rechargeRate);
-        }
-
-        if (!this.state.tierProgress || typeof this.state.tierProgress !== "object") {
-          this.state.tierProgress = {};
-        }
-
-        if (this.state.maxUnlockedTier === undefined) {
-          this.state.maxUnlockedTier = this.state.atmTierIndex || 0;
-        }
-
-        // Защита от выхода за пределы списка тиров
-        if (this.state.maxUnlockedTier >= ATM_TIERS.length) {
-          this.state.maxUnlockedTier = ATM_TIERS.length - 1;
-        }
-        if (this.state.atmTierIndex >= ATM_TIERS.length) {
-          this.state.atmTierIndex = this.state.maxUnlockedTier;
-        }
-
-        // Миграция старых сохранений в структуру tierProgress
-        const activeTier = this.state.atmTierIndex || 0;
-        if (!this.state.tierProgress[activeTier]) {
-          this.state.tierProgress[activeTier] = {
-            upgrades: Object.assign({}, this.state.upgrades || {}),
-            businesses: Object.assign({}, this.state.businesses || {})
-          };
+        const last = this.state.lastSaveTime || 0;
+        if (last > 0) {
+          const diffSec = Math.max(0, Math.floor((now - last) / 1000));
+          if (diffSec > 0) {
+            const maxE = this.getMaxEnergy();
+            const rechargeRate = this.getRechargeRate();
+            this.state.energy = Math.min(maxE, (this.state.energy !== undefined ? this.state.energy : maxE) + diffSec * rechargeRate);
+          }
         }
       } else {
         this.state.tierProgress = {
@@ -720,17 +802,28 @@ class AtmGame {
     } catch (e) {
       console.warn("Ошибка загрузки:", e);
     }
+
+    // Разовое начисление 30 триллионов ТОЛЬКО владельцу банка (Алексею)
+    if (this.isBankOwner() && !this.state.ownerBonus30T) {
+      this.state.ownerBonus30T = true;
+      this.state.balance = (this.state.balance || 0) + 30000000000000;
+      this.state.totalEarned = (this.state.totalEarned || 0) + 30000000000000;
+    }
+
     sounds.enabled = this.state.soundEnabled;
   }
 
-  saveState() {
+  saveState(forceCloud = false) {
     this.state.lastSaveTime = Date.now();
     try {
       localStorage.setItem("chizhbank_tycoon_save_v2", JSON.stringify(this.state));
     } catch (e) {
-      console.warn("Ошибка сохранения:", e);
+      console.warn("Ошибка сохранения в localStorage:", e);
     }
-    this.syncWithCloud();
+    // Дублируем в вечное хранилище Telegram CloudStorage
+    this.setTgCloud("chizhbank_save_v2", this.state);
+    // Синхронизируем с Cloudflare D1
+    this.syncWithCloud(forceCloud);
   }
 
   getUserId() {
@@ -752,7 +845,7 @@ class AtmGame {
 
     const now = Date.now();
     // Оптимизация батареи: сохранение в облако не чаще раз в 30 секунд (фоновое),
-    // если только не передан force = true (при выходе, IPO, покупке банкомата)
+    // если только не передан force = true (при выходе, IPO, покупке банкомата, смене тира)
     if (!force && this.lastCloudSyncTime && (now - this.lastCloudSyncTime < 30000)) {
       return;
     }
@@ -777,28 +870,52 @@ class AtmGame {
   }
 
   async loadFromCloud() {
-    const cloudUrl = (window.CHIZHBANK_CLOUD_URL || "").replace(/\/+$/, "");
-    const userId = this.getUserId();
-    if (!cloudUrl || !userId) return;
+    let stateUpgraded = false;
 
+    // 1. Проверяем вечное хранилище Telegram CloudStorage (привязано к Telegram ID)
     try {
-      const res = await fetch(`${cloudUrl}/api/load?userId=${userId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.state && (data.state.lastSaveTime || 0) > (this.state.lastSaveTime || 0)) {
-          this.state = Object.assign(this.state, data.state);
-          this.renderUI();
-          this.renderLists();
-          this.updateAtmAppearance();
-          this.updateNicknameUI();
-        } else {
-          // Если на сервере еще нет этого игрока или локальный прогресс новее — немедленно выгружаем в базу!
-          await this.syncWithCloud();
-        }
-      } else {
-        await this.syncWithCloud();
+      const tgData = await this.getTgCloud("chizhbank_save_v2");
+      if (tgData && this.isBetterState(tgData, this.state)) {
+        this.applyLoadedState(tgData);
+        stateUpgraded = true;
       }
     } catch (e) {}
+
+    // 2. Проверяем Cloudflare D1
+    const cloudUrl = (window.CHIZHBANK_CLOUD_URL || "").replace(/\/+$/, "");
+    const userId = this.getUserId();
+    if (cloudUrl && userId) {
+      try {
+        const res = await fetch(`${cloudUrl}/api/load?userId=${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.state && this.isBetterState(data.state, this.state)) {
+            this.applyLoadedState(data.state);
+            stateUpgraded = true;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 3. Начисление 30 триллионов ТОЛЬКО владельцу (Алексею)
+    if (this.isBankOwner() && !this.state.ownerBonus30T) {
+      this.state.ownerBonus30T = true;
+      this.state.balance = (this.state.balance || 0) + 30000000000000;
+      this.state.totalEarned = (this.state.totalEarned || 0) + 30000000000000;
+      stateUpgraded = true;
+    }
+
+    if (stateUpgraded) {
+      // Сохраняем лучшее восстановленное состояние во все 3 хранилища
+      this.saveState(true);
+      this.renderUI();
+      this.renderLists();
+      this.updateAtmAppearance();
+      this.updateNicknameUI();
+    } else {
+      // Отправляем текущее состояние в облако
+      await this.syncWithCloud();
+    }
 
     // Сразу запрашиваем реальный лидерборд
     this.fetchCloudLeaderboard();
@@ -823,7 +940,12 @@ class AtmGame {
 
   resetProgress() {
     if (confirm("Вы уверены, что хотите сбросить весь прогресс ChizhBank?")) {
-      localStorage.removeItem("chizhbank_tycoon_save_v2");
+      try {
+        localStorage.removeItem("chizhbank_tycoon_save_v2");
+        if (window.Telegram?.WebApp?.CloudStorage?.removeItem) {
+          window.Telegram.WebApp.CloudStorage.removeItem("chizhbank_save_v2", () => {});
+        }
+      } catch (e) {}
       window.location.reload();
     }
   }
@@ -847,7 +969,7 @@ class AtmGame {
     }
   }
 
-  addMoney(amount = 1000000000000) {
+  addMoney(amount = 30000000000000) {
     this.state.balance += amount;
     this.state.totalEarned += amount;
     this.saveState();
@@ -1059,7 +1181,8 @@ class AtmGame {
     if (num < 1000000) return "$" + (num / 1000).toFixed(1) + "K";
     if (num < 1000000000) return "$" + (num / 1000000).toFixed(2) + "M";
     if (num < 1000000000000) return "$" + (num / 1000000000).toFixed(2) + "B";
-    return "$" + (num / 1000000000000).toFixed(2) + "T";
+    if (num < 1000000000000000) return "$" + (num / 1000000000000).toFixed(2) + "T";
+    return "$" + (num / 1000000000000000).toFixed(2) + "Q";
   }
 
   initDOM() {
@@ -1342,7 +1465,7 @@ class AtmGame {
       balanceTimer = setTimeout(() => { balanceClicks = 0; }, 1500);
       if (balanceClicks >= 5) {
         balanceClicks = 0;
-        this.addMoney(1000000000000);
+        this.addMoney(30000000000000);
         this.spawnBanknotes(window.innerWidth / 2, 120, 10);
       }
     });
