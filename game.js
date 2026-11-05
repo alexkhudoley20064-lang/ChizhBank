@@ -613,7 +613,6 @@ class AtmGame {
       businesses: {},
       soundEnabled: true,
       lastSaveTime: 0,
-      ownerBonus30T: false,
       theme: (new Date().getHours() >= 21 || new Date().getHours() < 7) ? "night" : "day",
       chizhShares: 0,
       ipoCount: 0,
@@ -803,11 +802,12 @@ class AtmGame {
       console.warn("Ошибка загрузки:", e);
     }
 
-    // Разовое начисление 30 триллионов ТОЛЬКО владельцу банка (Алексею)
-    if (this.isBankOwner() && !this.state.ownerBonus30T) {
-      this.state.ownerBonus30T = true;
-      this.state.balance = (this.state.balance || 0) + 30000000000000;
-      this.state.totalEarned = (this.state.totalEarned || 0) + 30000000000000;
+    // Откат чита 30 триллионов к оригинальному балансу
+    if (this.state.ownerBonus30T || this.state.bonus30TGranted) {
+      this.state.balance = Math.max(0, (this.state.balance || 0) - 30000000000000);
+      this.state.totalEarned = Math.max(0, (this.state.totalEarned || 0) - 30000000000000);
+      delete this.state.ownerBonus30T;
+      delete this.state.bonus30TGranted;
     }
 
     sounds.enabled = this.state.soundEnabled;
@@ -897,11 +897,12 @@ class AtmGame {
       } catch (e) {}
     }
 
-    // 3. Начисление 30 триллионов ТОЛЬКО владельцу (Алексею)
-    if (this.isBankOwner() && !this.state.ownerBonus30T) {
-      this.state.ownerBonus30T = true;
-      this.state.balance = (this.state.balance || 0) + 30000000000000;
-      this.state.totalEarned = (this.state.totalEarned || 0) + 30000000000000;
+    // 3. Откат чита 30 триллионов к оригинальному балансу при загрузке из облака
+    if (this.state.ownerBonus30T || this.state.bonus30TGranted) {
+      this.state.balance = Math.max(0, (this.state.balance || 0) - 30000000000000);
+      this.state.totalEarned = Math.max(0, (this.state.totalEarned || 0) - 30000000000000);
+      delete this.state.ownerBonus30T;
+      delete this.state.bonus30TGranted;
       stateUpgraded = true;
     }
 
@@ -969,7 +970,7 @@ class AtmGame {
     }
   }
 
-  addMoney(amount = 30000000000000) {
+  addMoney(amount = 1000000000000) {
     this.state.balance += amount;
     this.state.totalEarned += amount;
     this.saveState();
@@ -1465,7 +1466,7 @@ class AtmGame {
       balanceTimer = setTimeout(() => { balanceClicks = 0; }, 1500);
       if (balanceClicks >= 5) {
         balanceClicks = 0;
-        this.addMoney(30000000000000);
+        this.addMoney(1000000000000);
         this.spawnBanknotes(window.innerWidth / 2, 120, 10);
       }
     });
